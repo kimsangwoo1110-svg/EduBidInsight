@@ -1,24 +1,73 @@
-import os
 import requests
 
-DOWNLOAD_FOLDER = "data/imports"
+from config.settings import NEIS_API_KEY
+from services.database import add_school
 
 
-def download_file(url, filename):
+URL = "https://open.neis.go.kr/hub/schoolInfo"
 
-    os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
-    file_path = os.path.join(DOWNLOAD_FOLDER, filename)
+def download_school_data():
 
-    print("다운로드 시작...")
+    page = 1
+    total = 0
 
-    response = requests.get(url, timeout=120)
+    while True:
 
-    response.raise_for_status()
+        print("=" * 80)
+        print(f"PAGE : {page}")
 
-    with open(file_path, "wb") as f:
-        f.write(response.content)
+        params = {
+            "KEY": NEIS_API_KEY,
+            "Type": "json",
+            "pIndex": page,
+            "pSize": 1000
+        }
 
-    print("다운로드 완료")
+        response = requests.get(URL, params=params, timeout=30)
+        response.raise_for_status()
 
-    return file_path
+        data = response.json()
+
+        if "schoolInfo" not in data:
+            print("다운로드 완료")
+            break
+
+        rows = data["schoolInfo"][1]["row"]
+
+        if not rows:
+            break
+
+        for school in rows:
+
+            try:
+
+                add_school(
+                    school_code=school.get("SD_SCHUL_CODE", ""),
+                    name=school.get("SCHUL_NM", ""),
+                    office=school.get("ATPT_OFCDC_SC_NM", ""),
+                    region=school.get("LCTN_SC_NM", ""),
+                    school_type=school.get("SCHUL_KND_SC_NM", ""),
+                    address=school.get("ORG_RDNMA", ""),
+                    homepage=school.get("HMPG_ADRES", ""),
+                    ai_school=0,
+                    digital_school=0,
+                    space_innovation=0,
+                    green_smart=0,
+                    student_count=0,
+                    class_count=0
+                )
+
+                total += 1
+
+            except Exception as e:
+                print(e)
+
+        print(f"저장 완료 : {total:,}개")
+
+        page += 1
+
+    print("=" * 80)
+    print(f"최종 저장 : {total:,}개")
+
+    return total

@@ -1,8 +1,8 @@
 import customtkinter as ctk
-from tkinter import filedialog, messagebox
+from tkinter import messagebox
 
 from gui.school_window import open_school_window
-from services.import_school import import_school_data
+from services.download_school import download_school_data
 
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
@@ -30,50 +30,45 @@ def run():
 
     status = ctk.CTkLabel(
         app,
-        text="학교 데이터를 가져오세요."
+        text="학교 데이터를 업데이트하세요."
     )
     status.pack(pady=10)
 
-    def import_excel():
-
-        file_path = filedialog.askopenfilename(
-            title="학교 데이터 선택",
-            filetypes=[("Excel 파일", "*.xlsx")]
-        )
-
-        if not file_path:
-            return
+    def update_school_data():
 
         try:
 
-            success, fail = import_school_data(file_path)
+            status.configure(text="학교 데이터를 업데이트 중입니다...")
+            app.update()
+
+            count = download_school_data()
 
             status.configure(
-                text=f"등록 완료 : {success:,}개 (실패 {fail}개)"
+                text=f"업데이트 완료 : {count:,}개 학교"
             )
 
             messagebox.showinfo(
-                "가져오기 완료",
-                f"""성공 : {success:,}개
-
-실패 : {fail:,}개"""
+                "완료",
+                f"{count:,}개 학교 데이터가 업데이트되었습니다."
             )
 
         except Exception as e:
+
+            status.configure(text="업데이트 실패")
 
             messagebox.showerror(
                 "오류",
                 str(e)
             )
 
-    import_btn = ctk.CTkButton(
+    update_btn = ctk.CTkButton(
         app,
-        text="학교 데이터 가져오기",
+        text="학교 데이터 업데이트",
         width=320,
         height=45,
-        command=import_excel
+        command=update_school_data
     )
-    import_btn.pack(pady=10)
+    update_btn.pack(pady=10)
 
     school_btn = ctk.CTkButton(
         app,
@@ -113,7 +108,7 @@ def run():
 
     footer = ctk.CTkLabel(
         app,
-        text="EduBid Insight v0.1    |    Developer : 김상우",
+        text="EduBid Insight v0.1 | Developer : 김상우",
         font=("맑은 고딕", 11),
         text_color="gray"
     )

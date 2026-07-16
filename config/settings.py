@@ -1,1 +1,1 @@
-NEIS_API_KEY = ""
+NEIS_API_KEY = "9f93d4db6ac2401498b7b1ace3dad586"
