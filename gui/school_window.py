@@ -4,8 +4,13 @@ from urllib.parse import urlparse
 import customtkinter as ctk
 from tkinter import Menu, messagebox, ttk
 
+from gui.crm import build_school_crm
+from gui.dashboard import build_school_dashboard
+from services.contract_service import ContractService
 from services.excel_service import export_school_excel
+from services.project_service import ProjectService
 from services.region_data import OFFICES
+from services.rule_service import RuleService
 from services.school_service import SchoolService
 
 
@@ -39,6 +44,27 @@ def format_number(value):
     return f"{int(value or 0):,}"
 
 
+def sort_treeview_column(tree, column_id, is_numeric, sort_directions):
+    """Sort one Treeview column, toggling only that column's direction."""
+    reverse = not sort_directions[column_id] if column_id in sort_directions else False
+    sort_directions[column_id] = reverse
+
+    def sort_key(item_id):
+        value = tree.set(item_id, column_id)
+        if is_numeric:
+            try:
+                return int(str(value).replace(",", ""))
+            except ValueError:
+                return 0
+        return str(value).casefold()
+
+    ordered_items = sorted(tree.get_children(""), key=sort_key, reverse=reverse)
+    for index, item_id in enumerate(ordered_items):
+        tree.move(item_id, "", index)
+
+    return reverse
+
+
 def normalize_homepage(homepage):
     """Return a safe HTTP(S) URL for a stored homepage value."""
     value = str(homepage or "").strip()
@@ -59,7 +85,7 @@ def open_school_detail(parent, row):
     """Open the detail dialog for a single school record."""
     detail = ctk.CTkToplevel(parent)
     detail.title(row[SCHOOL_NAME_INDEX])
-    detail.geometry("700x620")
+    detail.geometry("1180x700")
 
     ctk.CTkLabel(
         detail,
@@ -67,8 +93,21 @@ def open_school_detail(parent, row):
         font=("맑은 고딕", 26, "bold"),
     ).pack(pady=20)
 
-    frame = ctk.CTkFrame(detail)
-    frame.pack(fill="both", expand=True, padx=20, pady=10)
+    tabs = ctk.CTkTabview(detail)
+    tabs.pack(fill="both", expand=True, padx=20, pady=10)
+
+    school_tab = tabs.add("학교 정보")
+    dashboard_tab = tabs.add("대시보드")
+    crm_tab = tabs.add("CRM")
+    project_tab = tabs.add("프로젝트")
+    contract_tab = tabs.add("계약")
+    insight_tab = tabs.add("영업 인사이트")
+    market_tab = tabs.add("학교 시장")
+    g2b_tab = tabs.add("G2B")
+    ai_tab = tabs.add("AI 분석")
+
+    school_frame = ctk.CTkFrame(school_tab)
+    school_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
     infos = [
         ("학교코드", row[SCHOOL_CODE_INDEX]),
@@ -83,7 +122,7 @@ def open_school_detail(parent, row):
     ]
 
     for title, value in infos:
-        line = ctk.CTkFrame(frame)
+        line = ctk.CTkFrame(school_frame)
         line.pack(fill="x", pady=3)
 
         ctk.CTkLabel(
@@ -95,6 +134,426 @@ def open_school_detail(parent, row):
         ).pack(side="left", padx=10)
 
         ctk.CTkLabel(line, text=value or "", anchor="w").pack(side="left")
+
+    school_code = row[SCHOOL_CODE_INDEX]
+    project_rows = {}
+    build_school_dashboard(
+        dashboard_tab,
+        school_code,
+        row[SCHOOL_NAME_INDEX],
+    )
+    build_school_crm(crm_tab, school_code)
+
+    filter_frame = ctk.CTkFrame(project_tab)
+    filter_frame.pack(fill="x", padx=10, pady=(12, 6))
+
+    project_keyword = ctk.CTkEntry(
+        filter_frame, width=180, placeholder_text="프로젝트명 검색"
+    )
+    project_keyword.grid(row=0, column=0, padx=8, pady=8)
+    category_filter = ctk.CTkComboBox(filter_frame, width=130, values=["전체"])
+    category_filter.grid(row=0, column=1, padx=4, pady=8)
+    status_filter = ctk.CTkComboBox(
+        filter_frame,
+        width=110,
+        values=["전체", *ProjectService.STATUS_OPTIONS],
+    )
+    status_filter.grid(row=0, column=2, padx=4, pady=8)
+    year_filter = ctk.CTkComboBox(filter_frame, width=100, values=["전체"])
+    year_filter.grid(row=0, column=3, padx=4, pady=8)
+    category_filter.set("전체")
+    status_filter.set("전체")
+    year_filter.set("전체")
+
+    summary_label = ctk.CTkLabel(project_tab, anchor="w")
+    summary_label.pack(fill="x", padx=12, pady=(0, 6))
+
+    project_columns = (
+        "project_name",
+        "category",
+        "status",
+        "budget",
+        "period",
+        "source",
+    )
+    project_tree = ttk.Treeview(
+        project_tab,
+        columns=project_columns,
+        show="headings",
+        height=12,
+    )
+    project_headings = (
+        ("project_name", "프로젝트명", 260),
+        ("category", "분류", 110),
+        ("status", "상태", 110),
+        ("budget", "예산", 180),
+        ("period", "기간", 120),
+        ("source", "출처", 140),
+    )
+    for column_id, heading, width in project_headings:
+        project_tree.heading(column_id, text=heading)
+        project_tree.column(column_id, width=width, anchor="center")
+
+    project_tree.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+    status_colors = {
+        "진행중": "#1F6AA5",
+        "예정": "#D97706",
+        "완료": "#2E8B57",
+        "보류": "#7C3AED",
+    }
+    for status, color in status_colors.items():
+        project_tree.tag_configure(status, foreground=color)
+
+    def filter_values():
+        year = year_filter.get()
+        return {
+            "project_name": project_keyword.get(),
+            "category": category_filter.get(),
+            "status": status_filter.get(),
+            "year": None if year == "전체" else year,
+        }
+
+    def update_filter_options(projects):
+        selected_category = category_filter.get()
+        selected_year = year_filter.get()
+        categories = ["전체"] + sorted(
+            {project["category"] for project in projects if project["category"]}
+        )
+        years = sorted(
+            {
+                year
+                for project in projects
+                for year in (project["start_year"], project["end_year"])
+                if year
+            },
+            reverse=True,
+        )
+        year_values = ["전체", *[str(year) for year in years]]
+        category_filter.configure(values=categories)
+        year_filter.configure(values=year_values)
+        category_filter.set(
+            selected_category if selected_category in categories else "전체"
+        )
+        year_filter.set(selected_year if selected_year in year_values else "전체")
+
+    def refresh_projects():
+        saved_projects = ProjectService.list_for_school(school_code)
+        source_projects = saved_projects or ProjectService.sample_projects(school_code)
+        update_filter_options(source_projects)
+        filters = filter_values()
+        if saved_projects:
+            projects = ProjectService.list_for_school(school_code, **filters)
+            message = "등록된 프로젝트"
+        else:
+            projects = ProjectService.filter_projects(source_projects, **filters)
+            message = "등록된 프로젝트가 없어 샘플 데이터를 표시합니다."
+
+        project_tree.delete(*project_tree.get_children())
+        project_rows.clear()
+        for index, project in enumerate(projects):
+            start_year = project["start_year"] or "-"
+            end_year = project["end_year"] or "-"
+            item_id = f"project-{project['id'] or f'sample-{index}'}"
+            project_rows[item_id] = project
+            project_tree.insert(
+                "",
+                "end",
+                iid=item_id,
+                tags=(project["status"],),
+                values=(
+                    project["project_name"],
+                    project["category"],
+                    f"● {project['status'] or '-'}",
+                    ProjectService.format_budget(project["budget"]),
+                    f"{start_year} ~ {end_year}",
+                    project["source"],
+                ),
+            )
+
+        summary = ProjectService.summarize(projects)
+        counts = summary["status_counts"]
+        summary_label.configure(
+            text=(
+                f"{message} | 총 {summary['total_count']}건 | "
+                f"총 예산 {ProjectService.format_budget(summary['total_budget'])} | "
+                f"진행중 {counts['진행중']} · 예정 {counts['예정']} · "
+                f"완료 {counts['완료']} · 보류 {counts['보류']}"
+            )
+        )
+
+    def selected_project():
+        selection = project_tree.selection()
+        return project_rows.get(selection[0]) if selection else None
+
+    def to_optional_year(value):
+        value = value.strip()
+        return int(value) if value else None
+
+    def open_project_form(project=None):
+        form = ctk.CTkToplevel(detail)
+        form.title("프로젝트 수정" if project else "프로젝트 등록")
+        form.geometry("460x440")
+        form.transient(detail)
+        form.grab_set()
+
+        fields = ctk.CTkFrame(form)
+        fields.pack(fill="both", expand=True, padx=20, pady=20)
+
+        def add_entry(label, row_index, value=""):
+            ctk.CTkLabel(fields, text=label, anchor="w").grid(
+                row=row_index, column=0, padx=8, pady=7, sticky="w"
+            )
+            entry = ctk.CTkEntry(fields, width=270)
+            entry.insert(0, str(value or ""))
+            entry.grid(row=row_index, column=1, padx=8, pady=7)
+            return entry
+
+        name_entry = add_entry("프로젝트명", 0, project["project_name"] if project else "")
+        category_entry = add_entry("분류", 1, project["category"] if project else "")
+        budget_entry = add_entry("예산(원)", 2, project["budget"] if project else "")
+        start_year_entry = add_entry("시작연도", 3, project["start_year"] if project else "")
+        end_year_entry = add_entry("종료연도", 4, project["end_year"] if project else "")
+        source_entry = add_entry("출처", 5, project["source"] if project else "")
+        ctk.CTkLabel(fields, text="상태", anchor="w").grid(
+            row=6, column=0, padx=8, pady=7, sticky="w"
+        )
+        status_entry = ctk.CTkComboBox(fields, width=270, values=list(ProjectService.STATUS_OPTIONS))
+        status_entry.set(project["status"] if project and project["status"] else "예정")
+        status_entry.grid(row=6, column=1, padx=8, pady=7)
+
+        def save_project():
+            try:
+                budget = float(budget_entry.get().replace(",", "").strip() or 0)
+                start_year = to_optional_year(start_year_entry.get())
+                end_year = to_optional_year(end_year_entry.get())
+                if start_year and end_year and end_year < start_year:
+                    raise ValueError("종료연도는 시작연도보다 빠를 수 없습니다.")
+                values = (
+                    name_entry.get(),
+                    category_entry.get(),
+                    status_entry.get(),
+                    budget,
+                    start_year,
+                    end_year,
+                    source_entry.get(),
+                )
+                if project:
+                    ProjectService.update(project["id"], *values)
+                else:
+                    ProjectService.create(school_code, *values)
+            except ValueError as error:
+                messagebox.showerror("입력 오류", str(error), parent=form)
+                return
+            form.grab_release()
+            form.destroy()
+            refresh_projects()
+            refresh_insights()
+
+        ctk.CTkButton(form, text="저장", width=150, command=save_project).pack(
+            pady=(0, 20)
+        )
+
+    def edit_selected_project():
+        project = selected_project()
+        if project is None:
+            messagebox.showinfo("프로젝트", "수정할 프로젝트를 선택하세요.", parent=detail)
+        elif project["id"] is None:
+            messagebox.showinfo("프로젝트", "샘플 데이터는 수정할 수 없습니다.", parent=detail)
+        else:
+            open_project_form(project)
+
+    def delete_selected_project():
+        project = selected_project()
+        if project is None:
+            messagebox.showinfo("프로젝트", "삭제할 프로젝트를 선택하세요.", parent=detail)
+        elif project["id"] is None:
+            messagebox.showinfo("프로젝트", "샘플 데이터는 삭제할 수 없습니다.", parent=detail)
+        elif messagebox.askyesno(
+            "프로젝트 삭제",
+            f"'{project['project_name']}' 프로젝트를 삭제할까요?",
+            parent=detail,
+        ):
+            ProjectService.delete(project["id"])
+            refresh_projects()
+            refresh_insights()
+
+    ctk.CTkButton(filter_frame, text="조회", width=70, command=refresh_projects).grid(
+        row=0, column=4, padx=8, pady=8
+    )
+    ctk.CTkButton(
+        filter_frame,
+        text="초기화",
+        width=70,
+        command=lambda: (
+            project_keyword.delete(0, "end"),
+            category_filter.set("전체"),
+            status_filter.set("전체"),
+            year_filter.set("전체"),
+            refresh_projects(),
+        ),
+    ).grid(row=0, column=5, padx=(0, 8), pady=8)
+
+    project_button_frame = ctk.CTkFrame(project_tab, fg_color="transparent")
+    project_button_frame.pack(pady=(0, 10))
+    ctk.CTkButton(
+        project_button_frame, text="등록", width=110, command=open_project_form
+    ).pack(side="left", padx=4)
+    ctk.CTkButton(
+        project_button_frame, text="수정", width=110, command=edit_selected_project
+    ).pack(side="left", padx=4)
+    ctk.CTkButton(
+        project_button_frame, text="삭제", width=110, command=delete_selected_project
+    ).pack(side="left", padx=4)
+    project_keyword.bind("<Return>", lambda _event: refresh_projects())
+
+    contract_header = ctk.CTkFrame(contract_tab, fg_color="transparent")
+    contract_header.pack(fill="x", padx=10, pady=(12, 6))
+    contract_summary = ctk.CTkLabel(contract_header, anchor="w")
+    contract_summary.pack(side="left", fill="x", expand=True)
+
+    contract_tree = ttk.Treeview(
+        contract_tab,
+        columns=("date", "product", "category", "vendor", "quantity", "amount", "source"),
+        show="headings",
+        height=14,
+    )
+    for column, heading, width in (
+        ("date", "계약일", 100),
+        ("product", "품목", 230),
+        ("category", "카테고리", 120),
+        ("vendor", "업체", 190),
+        ("quantity", "수량", 70),
+        ("amount", "금액", 140),
+        ("source", "원본 파일", 180),
+    ):
+        contract_tree.heading(column, text=heading)
+        contract_tree.column(column, width=width, anchor="center")
+    contract_tree.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+    def refresh_contracts():
+        contracts = ContractService.search_by_school(school_code)
+        contract_tree.delete(*contract_tree.get_children())
+        for contract in contracts:
+            contract_tree.insert(
+                "",
+                "end",
+                iid=f"contract-{contract['id']}",
+                values=(
+                    contract["contract_date"],
+                    contract["product"],
+                    contract["category"],
+                    contract["vendor"],
+                    f"{contract['quantity']:,}",
+                    ContractService.format_amount(contract["amount"]),
+                    contract["source_file"],
+                ),
+            )
+        total_amount = sum(float(contract["amount"] or 0) for contract in contracts)
+        contract_summary.configure(
+            text=(
+                f"계약 {len(contracts):,}건 · "
+                f"총액 {ContractService.format_amount(total_amount)}"
+            )
+        )
+
+    ctk.CTkButton(
+        contract_header, text="새로고침", width=100, command=refresh_contracts
+    ).pack(side="right")
+
+    insight_header = ctk.CTkFrame(insight_tab, fg_color="transparent")
+    insight_header.pack(fill="x", padx=10, pady=(12, 6))
+    insight_summary = ctk.CTkLabel(insight_header, anchor="w")
+    insight_summary.pack(side="left", fill="x", expand=True)
+    ctk.CTkButton(
+        insight_header, text="다시 평가", width=100, command=lambda: refresh_insights()
+    ).pack(side="right")
+
+    insight_columns = (
+        "project_name",
+        "recommendation",
+        "score",
+        "reason",
+        "priority",
+    )
+    insight_tree = ttk.Treeview(
+        insight_tab,
+        columns=insight_columns,
+        show="headings",
+        height=14,
+    )
+    for column_id, heading, width in (
+        ("project_name", "대상", 210),
+        ("recommendation", "추천", 280),
+        ("score", "점수", 70),
+        ("reason", "근거", 410),
+        ("priority", "우선순위", 90),
+    ):
+        insight_tree.heading(column_id, text=heading)
+        insight_tree.column(column_id, width=width, anchor="center")
+    insight_tree.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+    insight_tree.tag_configure("높음", foreground="#C2410C")
+    insight_tree.tag_configure("보통", foreground="#1F6AA5")
+    insight_tree.tag_configure("낮음", foreground="#64748B")
+
+    def refresh_insights():
+        saved_projects = ProjectService.list_for_school(school_code)
+        projects = saved_projects or ProjectService.sample_projects(school_code)
+        sample_notice = "" if saved_projects else " (샘플 프로젝트 기반)"
+        contracts = ContractService.search_by_school(school_code)
+        insights = (
+            RuleService.evaluate_projects(projects)
+            + RuleService.evaluate_contracts(contracts)
+        )
+        insights.sort(
+            key=lambda insight: (-insight["score"], insight["project_name"].casefold())
+        )
+        insight_tree.delete(*insight_tree.get_children())
+        for index, insight in enumerate(insights):
+            insight_tree.insert(
+                "",
+                "end",
+                iid=f"insight-{index}",
+                tags=(insight["priority"],),
+                values=(
+                    (
+                        "계약: " if insight.get("target_type") == "contract" else "프로젝트: "
+                    ) + insight["project_name"],
+                    insight["recommendation"],
+                    insight["score"],
+                    insight["reason"],
+                    insight["priority"],
+                ),
+            )
+
+        if insights:
+            high_priority_count = sum(
+                insight["priority"] == "높음" for insight in insights
+            )
+            insight_summary.configure(
+                text=(
+                    f"추천 기회 {len(insights)}건 · "
+                    f"높은 우선순위 {high_priority_count}건{sample_notice}"
+                )
+            )
+        else:
+            insight_summary.configure(
+                text="활성 규칙과 일치하는 프로젝트 또는 계약이 없습니다."
+            )
+
+    refresh_projects()
+    refresh_contracts()
+    refresh_insights()
+
+    for tab, heading, description in (
+        (market_tab, "학교 시장", "학교 시장 데이터는 향후 프로젝트 데이터를 기반으로 제공합니다."),
+        (g2b_tab, "G2B", "나라장터 연계 데이터는 향후 업데이트에서 제공합니다."),
+        (ai_tab, "AI 분석", "AI 분석은 프로젝트 및 입찰 데이터가 축적되면 제공합니다."),
+    ):
+        ctk.CTkLabel(tab, text=heading, font=("맑은 고딕", 20, "bold")).pack(
+            pady=(45, 12)
+        )
+        ctk.CTkLabel(tab, text=description, text_color="gray").pack(padx=20)
 
     ctk.CTkButton(
         detail,
@@ -228,22 +687,7 @@ def open_school_window(parent):
             )
 
     def sort_tree(column_id, is_numeric):
-        reverse = sort_reverse.get(column_id, True)
-        sort_reverse[column_id] = reverse
-
-        def sort_key(item_id):
-            value = tree.set(item_id, column_id)
-            if is_numeric:
-                try:
-                    return int(value.replace(",", ""))
-                except (AttributeError, ValueError):
-                    return 0
-            return value.casefold()
-
-        ordered_items = sorted(tree.get_children(""), key=sort_key, reverse=reverse)
-        for index, item_id in enumerate(ordered_items):
-            tree.move(item_id, "", index)
-
+        sort_treeview_column(tree, column_id, is_numeric, sort_reverse)
         update_headings(column_id)
 
     for column_id, heading, width, is_numeric in TREE_COLUMNS:
