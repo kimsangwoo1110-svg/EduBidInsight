@@ -2,43 +2,39 @@ from openpyxl import load_workbook
 from services.database import add_school
 
 
+def value(v):
+    if v is None:
+        return ""
+    return str(v).strip()
+
+
 def import_school_data(file_path):
 
-    wb = load_workbook(file_path, data_only=True)
+    wb = load_workbook(file_path)
     ws = wb.active
 
-    success = 0
-    fail = 0
+    count = 0
 
     for row in ws.iter_rows(min_row=2, values_only=True):
 
-        try:
+        school_code = value(row[0]) if len(row) > 0 else ""
+        school_name = value(row[1]) if len(row) > 1 else ""
+        school_type = value(row[2]) if len(row) > 2 else ""
+        office = value(row[3]) if len(row) > 3 else ""
+        region = value(row[4]) if len(row) > 4 else ""
+        address = value(row[5]) if len(row) > 5 else ""
+        homepage = value(row[6]) if len(row) > 6 else ""
 
-            if row is None:
-                continue
+        add_school(
+            school_code=school_code,
+            name=school_name,
+            office=office,
+            region=region,
+            school_type=school_type,
+            address=address,
+            homepage=homepage
+        )
 
-            school_name = "" if row[0] is None else str(row[0]).strip()
+        count += 1
 
-            if school_name == "":
-                continue
-
-            office = "" if len(row) < 2 or row[1] is None else str(row[1]).strip()
-            region = "" if len(row) < 3 or row[2] is None else str(row[2]).strip()
-            school_type = "" if len(row) < 4 or row[3] is None else str(row[3]).strip()
-            address = "" if len(row) < 5 or row[4] is None else str(row[4]).strip()
-
-            add_school(
-                school_name,
-                office,
-                region,
-                school_type,
-                address
-            )
-
-            success += 1
-
-        except Exception:
-
-            fail += 1
-
-    return success, fail
+    return count
