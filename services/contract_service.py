@@ -38,11 +38,11 @@ class ContractService:
     """Service boundary for imported education contracts."""
 
     @classmethod
-    def save(cls, **values):
+    def save(cls, connection=None, commit=True, **values):
         contract = cls.validate(values)
-        if cls.duplicate_check(**contract):
+        if cls.duplicate_check(connection=connection, **contract):
             return None
-        return add_contract(contract)
+        return add_contract(contract, connection=connection, commit=commit)
 
     @classmethod
     def update(cls, contract_id, **values):
@@ -74,9 +74,11 @@ class ContractService:
         return ContractService._rows(find_contracts(limit=limit))
 
     @staticmethod
-    def duplicate_check(exclude_id=None, **values):
+    def duplicate_check(exclude_id=None, connection=None, **values):
         contract = ContractService.validate(values)
-        return contract_duplicate_exists(contract, exclude_id=exclude_id)
+        return contract_duplicate_exists(
+            contract, exclude_id=exclude_id, connection=connection
+        )
 
     @classmethod
     def validate(cls, values):

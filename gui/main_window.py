@@ -4,37 +4,56 @@ import threading
 import customtkinter as ctk
 from tkinter import messagebox
 
+from core.version import __version__
+from core.app_settings import get_app_settings
+from core.logger import get_logger
 from gui.data_source_manager import open_data_source_manager
 from gui.rule_manager import open_rule_manager
 from gui.school_window import open_school_window
+from gui.opportunity_dashboard import open_opportunity_dashboard
+from gui.action_center import open_action_center
+from gui.today_dashboard import build_today_dashboard
+from gui.report_center import open_report_center
+from gui.settings_dialog import open_settings_dialog
 from gui.sync_manager import open_sync_manager
 from services.sync_service import SyncService
+from services.backup_service import BackupService
 
 
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
 
 
-def run():
+def run(settings=None):
+    settings = settings or get_app_settings()
+    ctk.set_appearance_mode(settings.get("theme"))
     app = ctk.CTk()
-    app.title("EduBid Insight")
-    app.geometry("1000x800")
+    app.title(f"EduBid Insight v{__version__}")
+    app.geometry(settings.get("window_size"))
+    app.minsize(1180, 720)
+
+    shell = ctk.CTkFrame(app, fg_color="transparent")
+    shell.pack(fill="both", expand=True)
+    sidebar = ctk.CTkScrollableFrame(shell, width=330, corner_radius=0)
+    sidebar.pack(side="left", fill="y")
+    home = ctk.CTkFrame(shell, fg_color="transparent")
+    home.pack(side="right", fill="both", expand=True)
 
     title = ctk.CTkLabel(
-        app,
+        sidebar,
         text="EduBid Insight",
         font=("맑은 고딕", 32, "bold"),
     )
     title.pack(pady=(40, 10))
 
     subtitle = ctk.CTkLabel(
-        app,
+        sidebar,
         text="학교 교육사업 통합 검색 플랫폼",
         font=("맑은 고딕", 15),
     )
     subtitle.pack(pady=(0, 30))
 
-    status = ctk.CTkLabel(app, text="학교 데이터를 업데이트하세요")
+    status = ctk.CTkLabel(sidebar, text="학교 데이터를 업데이트하세요")
     status.pack(pady=10)
 
     action_buttons = []
@@ -130,7 +149,7 @@ def run():
         app.after(100, process_download_events)
 
     update_btn = ctk.CTkButton(
-        app,
+        sidebar,
         text="학교 데이터 업데이트",
         width=320,
         height=45,
@@ -140,7 +159,7 @@ def run():
     action_buttons.append(update_btn)
 
     school_btn = ctk.CTkButton(
-        app,
+        sidebar,
         text="학교 검색",
         width=320,
         height=45,
@@ -150,7 +169,7 @@ def run():
     action_buttons.append(school_btn)
 
     rule_btn = ctk.CTkButton(
-        app,
+        sidebar,
         text="규칙 관리",
         width=320,
         height=45,
@@ -160,7 +179,7 @@ def run():
     action_buttons.append(rule_btn)
 
     sync_btn = ctk.CTkButton(
-        app,
+        sidebar,
         text="데이터 동기화 관리",
         width=320,
         height=45,
@@ -170,7 +189,7 @@ def run():
     action_buttons.append(sync_btn)
 
     source_manager_btn = ctk.CTkButton(
-        app,
+        sidebar,
         text="데이터 소스 관리",
         width=320,
         height=45,
@@ -180,7 +199,7 @@ def run():
     action_buttons.append(source_manager_btn)
 
     office_btn = ctk.CTkButton(
-        app,
+        sidebar,
         text="교육청 검색",
         width=320,
         height=45,
@@ -190,7 +209,7 @@ def run():
     action_buttons.append(office_btn)
 
     g2b_btn = ctk.CTkButton(
-        app,
+        sidebar,
         text="나라장터 검색",
         width=320,
         height=45,
@@ -200,21 +219,72 @@ def run():
     action_buttons.append(g2b_btn)
 
     ai_btn = ctk.CTkButton(
-        app,
+        sidebar,
         text="AI 검색",
         width=320,
         height=45,
-        command=lambda: print("AI 검색"),
+        command=lambda: open_opportunity_dashboard(app),
     )
     ai_btn.pack(pady=10)
     action_buttons.append(ai_btn)
 
+    action_center_btn = ctk.CTkButton(
+        sidebar,
+        text="CRM Action Center",
+        width=320,
+        height=45,
+        command=lambda: open_action_center(app),
+    )
+    action_center_btn.pack(pady=10)
+    action_buttons.append(action_center_btn)
+
+    report_center_btn = ctk.CTkButton(
+        sidebar,
+        text="Report Center",
+        width=320,
+        height=45,
+        command=lambda: open_report_center(app),
+    )
+    report_center_btn.pack(pady=10)
+    action_buttons.append(report_center_btn)
+
+    settings_btn = ctk.CTkButton(
+        sidebar,
+        text="Settings",
+        width=320,
+        height=45,
+        command=lambda: open_settings_dialog(app, settings),
+    )
+    settings_btn.pack(pady=10)
+    action_buttons.append(settings_btn)
+
     footer = ctk.CTkLabel(
-        app,
-        text="EduBid Insight v0.1 | Developer : 김상우",
+        sidebar,
+        text=f"EduBid Insight v{__version__} | Developer : 김상우",
         font=("맑은 고딕", 11),
         text_color="gray",
     )
     footer.pack(side="bottom", pady=10)
 
+    build_today_dashboard(
+        home,
+        refresh_interval_ms=int(settings.get("auto_refresh_interval")) * 1000,
+    )
+
+    def close_application():
+        logger = get_logger("shutdown")
+        try:
+            geometry = app.geometry().split("+", 1)[0]
+            settings.set("window_size", geometry).save()
+        except Exception:
+            logger.exception("failed to save settings on exit")
+        try:
+            BackupService(
+                settings.database_path, settings.backup_directory
+            ).automatic_backup()
+        except Exception:
+            logger.exception("automatic exit backup failed")
+        app.destroy()
+
+    app.protocol("WM_DELETE_WINDOW", close_application)
     app.mainloop()

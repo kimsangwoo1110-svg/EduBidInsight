@@ -51,9 +51,19 @@ DEFAULT_RULES = (
 )
 
 
+def configure_database(file_path):
+    """Point database access at a settings-managed SQLite file."""
+    global DB_NAME
+    selected = str(file_path or "").strip()
+    if not selected:
+        raise ValueError("database file path is required")
+    DB_NAME = os.path.abspath(selected)
+    return DB_NAME
+
+
 def get_connection():
     """Open a SQLite connection compatible with the existing local database."""
-    os.makedirs("data", exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(DB_NAME)), exist_ok=True)
     return sqlite3.connect(DB_NAME)
 
 
@@ -182,6 +192,24 @@ def create_database():
         )
         cursor.execute(
             """
+            CREATE TABLE IF NOT EXISTS education_office_import_keys(
+                record_key TEXT PRIMARY KEY,
+                project_id INTEGER NOT NULL,
+                office TEXT,
+                region TEXT,
+                fiscal_year INTEGER,
+                start_date TEXT,
+                end_date TEXT,
+                imported_at TEXT NOT NULL
+            )
+            """
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_education_office_project "
+            "ON education_office_import_keys(project_id)"
+        )
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS contracts(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 school_code TEXT NOT NULL,
@@ -209,6 +237,41 @@ def create_database():
         )
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_contract_date ON contracts(contract_date DESC)"
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS schoolmarket_import_keys(
+                record_key TEXT PRIMARY KEY,
+                contract_number TEXT,
+                contract_id INTEGER NOT NULL,
+                imported_at TEXT NOT NULL
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_schoolmarket_contract_number
+            ON schoolmarket_import_keys(contract_number)
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS g2b_import_keys(
+                record_key TEXT PRIMARY KEY,
+                contract_number TEXT,
+                notice_number TEXT,
+                contract_id INTEGER NOT NULL,
+                imported_at TEXT NOT NULL
+            )
+            """
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_g2b_contract_number "
+            "ON g2b_import_keys(contract_number)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_g2b_notice_number "
+            "ON g2b_import_keys(notice_number)"
         )
         cursor.execute(
             """
@@ -269,6 +332,74 @@ def create_database():
             """
             CREATE INDEX IF NOT EXISTS idx_recommendation_history_school
             ON recommendation_history(school_code, created_at DESC)
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS opportunity_history(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                school_id TEXT NOT NULL,
+                school_name TEXT NOT NULL,
+                score INTEGER NOT NULL,
+                generated_at TEXT NOT NULL,
+                result_json TEXT NOT NULL
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_opportunity_history_school
+            ON opportunity_history(school_id, id DESC)
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS crm_actions(
+                action_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                school_id TEXT NOT NULL,
+                action_type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                status TEXT NOT NULL,
+                priority TEXT NOT NULL,
+                due_date TEXT,
+                completed_date TEXT,
+                note TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_crm_actions_school
+            ON crm_actions(school_id, updated_at DESC)
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_crm_actions_due_status
+            ON crm_actions(due_date, status)
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS crm_action_history(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                action_id INTEGER NOT NULL,
+                changed_at TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                old_status TEXT,
+                new_status TEXT,
+                note TEXT,
+                completed_at TEXT,
+                FOREIGN KEY(action_id) REFERENCES crm_actions(action_id)
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_crm_action_history_action
+            ON crm_action_history(action_id, id DESC)
             """
         )
         cursor.execute(
@@ -413,9 +544,13 @@ def add_project(
     start_year=None,
     end_year=None,
     source="",
+    connection=None,
+    commit=True,
 ):
     """Create a project and return its SQLite identifier."""
-    with closing(get_connection()) as conn:
+    owns_connection = connection is None
+    conn = connection or get_connection()
+    try:
         cursor = conn.execute(
             """
             INSERT INTO projects(
@@ -435,8 +570,68 @@ def add_project(
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             ),
         )
-        conn.commit()
+        if commit:
+            conn.commit()
         return cursor.lastrowid
+    finally:
+        if owns_connection:
+            conn.close()
+
+
+def education_office_key_exists(record_key, connection=None):
+    """Return whether an Education Office source identity already exists."""
+    owns_connection = connection is None
+    conn = connection or get_connection()
+    try:
+        return conn.execute(
+            "SELECT 1 FROM education_office_import_keys WHERE record_key = ? LIMIT 1",
+            (str(record_key or "").strip(),),
+        ).fetchone() is not None
+    finally:
+        if owns_connection:
+            conn.close()
+
+
+def add_education_office_key(metadata, project_id, connection):
+    """Store Education Office metadata in the caller's transaction."""
+    connection.execute(
+        """
+        INSERT INTO education_office_import_keys(
+            record_key, project_id, office, region, fiscal_year,
+            start_date, end_date, imported_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            metadata["record_key"],
+            int(project_id),
+            metadata.get("office", ""),
+            metadata.get("region", ""),
+            metadata.get("fiscal_year"),
+            metadata.get("start_date", ""),
+            metadata.get("end_date", ""),
+            datetime.now().astimezone().isoformat(timespec="seconds"),
+        ),
+    )
+
+
+def find_education_office_projects(school_code=""):
+    """Return imported Education Office projects with their source metadata."""
+    sql = """
+        SELECT projects.id, projects.school_code, projects.project_name,
+               projects.category, projects.status, projects.budget,
+               projects.start_year, projects.end_year, projects.source,
+               projects.updated_at, metadata.office, metadata.region,
+               metadata.fiscal_year, metadata.start_date, metadata.end_date
+        FROM education_office_import_keys AS metadata
+        JOIN projects ON projects.id = metadata.project_id
+    """
+    params = ()
+    if str(school_code or "").strip():
+        sql += " WHERE projects.school_code = ?"
+        params = (str(school_code).strip(),)
+    sql += " ORDER BY metadata.fiscal_year DESC, projects.id DESC"
+    with closing(get_connection()) as conn:
+        return conn.execute(sql, params).fetchall()
 
 
 def find_projects_by_school(
@@ -603,10 +798,12 @@ def delete_rule(rule_id):
         return cursor.rowcount > 0
 
 
-def add_contract(contract):
+def add_contract(contract, connection=None, commit=True):
     """Insert a validated contract and return its identifier."""
     timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
-    with closing(get_connection()) as conn:
+    owns_connection = connection is None
+    conn = connection or get_connection()
+    try:
         cursor = conn.execute(
             """
             INSERT INTO contracts(
@@ -628,8 +825,12 @@ def add_contract(contract):
                 timestamp,
             ),
         )
-        conn.commit()
+        if commit:
+            conn.commit()
         return cursor.lastrowid
+    finally:
+        if owns_connection:
+            conn.close()
 
 
 def update_contract(contract_id, contract):
@@ -704,7 +905,7 @@ def find_contracts(
         return conn.execute(sql, params).fetchall()
 
 
-def contract_duplicate_exists(contract, exclude_id=None):
+def contract_duplicate_exists(contract, exclude_id=None, connection=None):
     """Check the business key used by file imports for duplicate contracts."""
     sql = """
         SELECT 1 FROM contracts
@@ -722,8 +923,159 @@ def contract_duplicate_exists(contract, exclude_id=None):
         sql += " AND id <> ?"
         params.append(exclude_id)
     sql += " LIMIT 1"
-    with closing(get_connection()) as conn:
+    owns_connection = connection is None
+    conn = connection or get_connection()
+    try:
         return conn.execute(sql, params).fetchone() is not None
+    finally:
+        if owns_connection:
+            conn.close()
+
+
+def schoolmarket_key_exists(record_key, connection=None):
+    """Return whether a SchoolMarket source identity was already imported."""
+    owns_connection = connection is None
+    conn = connection or get_connection()
+    try:
+        return conn.execute(
+            "SELECT 1 FROM schoolmarket_import_keys WHERE record_key = ? LIMIT 1",
+            (str(record_key or "").strip(),),
+        ).fetchone() is not None
+    finally:
+        if owns_connection:
+            conn.close()
+
+
+def add_schoolmarket_key(record_key, contract_number, contract_id, connection):
+    """Store a SchoolMarket identity in the caller's import transaction."""
+    connection.execute(
+        """
+        INSERT INTO schoolmarket_import_keys(
+            record_key, contract_number, contract_id, imported_at
+        ) VALUES (?, ?, ?, ?)
+        """,
+        (
+            str(record_key or "").strip(),
+            str(contract_number or "").strip(),
+            int(contract_id),
+            datetime.now().astimezone().isoformat(timespec="seconds"),
+        ),
+    )
+
+
+def find_school_by_name(school_name, connection=None):
+    """Find one school by a normalized exact name match."""
+    normalized = "".join(str(school_name or "").split()).casefold()
+    if not normalized:
+        return None
+    owns_connection = connection is None
+    conn = connection or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT school_code, school_name FROM schools ORDER BY id"
+        ).fetchall()
+        return next(
+            (
+                {"school_code": row[0], "school_name": row[1]}
+                for row in rows
+                if "".join(str(row[1] or "").split()).casefold() == normalized
+            ),
+            None,
+        )
+    finally:
+        if owns_connection:
+            conn.close()
+
+
+def find_school_by_code(school_code, connection=None):
+    """Return one complete school row by code, or ``None``."""
+    owns_connection = connection is None
+    conn = connection or get_connection()
+    try:
+        return conn.execute(
+            """
+            SELECT school_code, school_name, school_type, office, region, address,
+                   homepage, ai_school, digital_school, space_innovation,
+                   green_smart, student_count, class_count
+            FROM schools
+            WHERE school_code = ?
+            LIMIT 1
+            """,
+            (str(school_code or "").strip(),),
+        ).fetchone()
+    finally:
+        if owns_connection:
+            conn.close()
+
+
+def find_schoolmarket_contract_ids(school_code):
+    """Return SchoolMarket-created contract IDs for one school."""
+    with closing(get_connection()) as conn:
+        return [
+            row[0]
+            for row in conn.execute(
+                """
+                SELECT keys.contract_id
+                FROM schoolmarket_import_keys AS keys
+                JOIN contracts ON contracts.id = keys.contract_id
+                WHERE contracts.school_code = ?
+                ORDER BY keys.imported_at DESC, keys.contract_id DESC
+                """,
+                (str(school_code or "").strip(),),
+            ).fetchall()
+        ]
+
+
+def g2b_key_exists(record_key, connection=None):
+    """Return whether a G2B source identity was already imported."""
+    owns_connection = connection is None
+    conn = connection or get_connection()
+    try:
+        return conn.execute(
+            "SELECT 1 FROM g2b_import_keys WHERE record_key = ? LIMIT 1",
+            (str(record_key or "").strip(),),
+        ).fetchone() is not None
+    finally:
+        if owns_connection:
+            conn.close()
+
+
+def add_g2b_key(
+    record_key, contract_number, notice_number, contract_id, connection
+):
+    """Store a G2B identity in the caller's import transaction."""
+    connection.execute(
+        """
+        INSERT INTO g2b_import_keys(
+            record_key, contract_number, notice_number, contract_id, imported_at
+        ) VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            str(record_key or "").strip(),
+            str(contract_number or "").strip(),
+            str(notice_number or "").strip(),
+            int(contract_id),
+            datetime.now().astimezone().isoformat(timespec="seconds"),
+        ),
+    )
+
+
+def find_g2b_contract_ids(school_code):
+    """Return G2B-created contract IDs for one school."""
+    with closing(get_connection()) as conn:
+        return [
+            row[0]
+            for row in conn.execute(
+                """
+                SELECT keys.contract_id
+                FROM g2b_import_keys AS keys
+                JOIN contracts ON contracts.id = keys.contract_id
+                WHERE contracts.school_code = ?
+                ORDER BY keys.imported_at DESC, keys.contract_id DESC
+                """,
+                (str(school_code or "").strip(),),
+            ).fetchall()
+        ]
 
 
 def start_sync_history(source, started_at):
@@ -871,6 +1223,209 @@ def find_recommendation_history(school_code, limit=20):
             LIMIT ?
             """,
             (str(school_code or "").strip(), max(1, int(limit))),
+        ).fetchall()
+
+
+def add_opportunity_history(school_id, school_name, score, generated_at, result_json):
+    """Persist one Opportunity Engine score snapshot."""
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO opportunity_history(
+                school_id, school_name, score, generated_at, result_json
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                str(school_id or "").strip(),
+                str(school_name or "").strip(),
+                int(score or 0),
+                str(generated_at or "").strip(),
+                str(result_json or ""),
+            ),
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+def find_opportunity_history(school_id="", limit=1000):
+    """Return newest Opportunity Engine snapshots, optionally for one school."""
+    sql = """
+        SELECT id, school_id, school_name, score, generated_at, result_json
+        FROM opportunity_history
+    """
+    params = []
+    if str(school_id or "").strip():
+        sql += " WHERE school_id = ?"
+        params.append(str(school_id).strip())
+    sql += " ORDER BY id DESC LIMIT ?"
+    params.append(max(1, int(limit)))
+    with closing(get_connection()) as conn:
+        return conn.execute(sql, params).fetchall()
+
+
+def find_latest_opportunity_history():
+    """Return only the newest persisted Opportunity snapshot per school."""
+    with closing(get_connection()) as conn:
+        return conn.execute(
+            """
+            SELECT history.id, history.school_id, history.school_name,
+                   history.score, history.generated_at, history.result_json
+            FROM opportunity_history AS history
+            JOIN (
+                SELECT school_id, MAX(id) AS latest_id
+                FROM opportunity_history GROUP BY school_id
+            ) AS latest ON latest.latest_id = history.id
+            ORDER BY history.score DESC, history.school_name, history.school_id
+            """
+        ).fetchall()
+
+
+def add_crm_action(action, history_note=""):
+    """Insert an action and its immutable creation history atomically."""
+    with closing(get_connection()) as conn, conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO crm_actions(
+                school_id, action_type, title, status, priority, due_date,
+                completed_date, note, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                action["school_id"], action["action_type"], action["title"],
+                action["status"], action["priority"], action.get("due_date"),
+                action.get("completed_date"), action.get("note", ""),
+                action["created_at"], action["updated_at"],
+            ),
+        )
+        action_id = cursor.lastrowid
+        conn.execute(
+            """
+            INSERT INTO crm_action_history(
+                action_id, changed_at, event_type, old_status, new_status,
+                note, completed_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                action_id, action["created_at"], "Created", None,
+                action["status"], history_note or action.get("note", ""),
+                action.get("completed_date"),
+            ),
+        )
+        return action_id
+
+
+def get_crm_action(action_id):
+    """Return one CRM action row or ``None``."""
+    with closing(get_connection()) as conn:
+        return conn.execute(
+            """
+            SELECT action_id, school_id, action_type, title, status, priority,
+                   due_date, completed_date, note, created_at, updated_at
+            FROM crm_actions WHERE action_id = ?
+            """,
+            (int(action_id),),
+        ).fetchone()
+
+
+def transition_crm_action(action_id, status, completed_date, updated_at, note=""):
+    """Change status and append history in the same transaction."""
+    with closing(get_connection()) as conn, conn:
+        current = conn.execute(
+            "SELECT status FROM crm_actions WHERE action_id = ?",
+            (int(action_id),),
+        ).fetchone()
+        if current is None:
+            return False
+        conn.execute(
+            """
+            UPDATE crm_actions
+            SET status = ?, completed_date = ?, updated_at = ?
+            WHERE action_id = ?
+            """,
+            (status, completed_date, updated_at, int(action_id)),
+        )
+        conn.execute(
+            """
+            INSERT INTO crm_action_history(
+                action_id, changed_at, event_type, old_status, new_status,
+                note, completed_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(action_id), updated_at,
+                "Completed" if status == "Completed" else "Status Changed",
+                current[0], status, note, completed_date,
+            ),
+        )
+        return True
+
+
+def find_crm_actions(
+    status="", priority="", school="", action_type="", due_from="", due_to="",
+    exact_school=False,
+):
+    """Search CRM actions using composable indexed filters."""
+    conditions = []
+    params = []
+    for column, value in (("status", status), ("priority", priority), ("action_type", action_type)):
+        selected = str(value or "").strip()
+        if selected:
+            conditions.append(f"{column} = ?")
+            params.append(selected)
+    selected_school = str(school or "").strip()
+    if selected_school:
+        if exact_school:
+            conditions.append("school_id = ?")
+            params.append(selected_school)
+        else:
+            conditions.append("school_id LIKE ? ESCAPE '\\'")
+            params.append(f"%{_escape_like(selected_school)}%")
+    if str(due_from or "").strip():
+        conditions.append("due_date >= ?")
+        params.append(str(due_from).strip())
+    if str(due_to or "").strip():
+        conditions.append("due_date <= ?")
+        params.append(str(due_to).strip())
+    sql = """
+        SELECT action_id, school_id, action_type, title, status, priority,
+               due_date, completed_date, note, created_at, updated_at
+        FROM crm_actions
+    """
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+    sql += " ORDER BY CASE WHEN due_date IS NULL OR due_date = '' THEN 1 ELSE 0 END, due_date, updated_at DESC"
+    with closing(get_connection()) as conn:
+        return conn.execute(sql, params).fetchall()
+
+
+def find_crm_action_history(action_id):
+    """Return newest-first audit events for one action."""
+    with closing(get_connection()) as conn:
+        return conn.execute(
+            """
+            SELECT id, action_id, changed_at, event_type, old_status,
+                   new_status, note, completed_at
+            FROM crm_action_history WHERE action_id = ? ORDER BY id DESC
+            """,
+            (int(action_id),),
+        ).fetchall()
+
+
+def find_recent_crm_action_history(limit=50):
+    """Return recent action audit events joined to their action details."""
+    with closing(get_connection()) as conn:
+        return conn.execute(
+            """
+            SELECT history.id, history.action_id, history.changed_at,
+                   history.event_type, history.old_status, history.new_status,
+                   history.note, history.completed_at, actions.school_id,
+                   actions.action_type, actions.title, actions.priority,
+                   actions.due_date
+            FROM crm_action_history AS history
+            JOIN crm_actions AS actions ON actions.action_id = history.action_id
+            ORDER BY history.id DESC LIMIT ?
+            """,
+            (max(1, int(limit)),),
         ).fetchall()
 
 

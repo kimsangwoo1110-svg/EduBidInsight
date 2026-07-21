@@ -22,6 +22,25 @@ def dashboard_kpi_values(summary):
     )
 
 
+def g2b_kpi_values(summary):
+    """Return G2B-specific cards without changing the established KPI set."""
+    g2b = summary.get("g2b_summary") or {}
+    return (
+        ("G2B contracts", f"{int(g2b.get('total_count', 0) or 0):,}건"),
+        ("G2B spending", ContractService.format_amount(g2b.get("total_spending", 0))),
+    )
+
+
+def project_portfolio_values(summary):
+    """Return the Education Office project portfolio KPI values."""
+    projects = summary.get("project_analytics") or {}
+    return (
+        ("Total projects", f"{int(projects.get('total_projects', 0) or 0):,}건"),
+        ("Active projects", f"{int(projects.get('active_projects', 0) or 0):,}건"),
+        ("Total project budget", ProjectService.format_budget(projects.get("total_budget", 0))),
+    )
+
+
 def purchase_cycle_text(cycle):
     if cycle["status"] != "분석 완료":
         return f"{cycle['status']} · 최근 구매일 {cycle['last_purchase_date'] or '-'}"
@@ -74,6 +93,71 @@ def build_school_dashboard(parent, school_code, school_name):
         value = ctk.CTkLabel(card, text="-", font=("맑은 고딕", 15, "bold"))
         value.pack(padx=8, pady=(2, 8))
         kpi_labels.append((title, value))
+
+    g2b_frame = ctk.CTkFrame(dashboard)
+    g2b_frame.pack(fill="x", pady=5)
+    ctk.CTkLabel(
+        g2b_frame, text="G2B (나라장터)", font=("맑은 고딕", 16, "bold")
+    ).grid(row=0, column=0, columnspan=2, padx=10, pady=(8, 3), sticky="w")
+    g2b_kpi_labels = []
+    for index in range(2):
+        card = ctk.CTkFrame(g2b_frame)
+        card.grid(row=1, column=index, padx=5, pady=(3, 8), sticky="nsew")
+        g2b_frame.grid_columnconfigure(index, weight=1)
+        title = ctk.CTkLabel(card, text="-", text_color="gray")
+        title.pack(padx=8, pady=(7, 2))
+        value = ctk.CTkLabel(card, text="-", font=("맑은 고딕", 15, "bold"))
+        value.pack(padx=8, pady=(2, 8))
+        g2b_kpi_labels.append((title, value))
+    g2b_latest_tree = ttk.Treeview(
+        g2b_frame,
+        columns=("date", "product", "vendor", "amount"),
+        show="headings",
+        height=3,
+    )
+    for column, heading, width in (
+        ("date", "계약일", 110),
+        ("product", "품명", 260),
+        ("vendor", "공급업체", 220),
+        ("amount", "계약금액", 150),
+    ):
+        g2b_latest_tree.heading(column, text=heading)
+        g2b_latest_tree.column(column, width=width, anchor="center")
+    g2b_latest_tree.grid(row=2, column=0, columnspan=2, padx=8, pady=(2, 9), sticky="ew")
+
+    office_project_frame = ctk.CTkFrame(dashboard)
+    office_project_frame.pack(fill="x", pady=5)
+    ctk.CTkLabel(
+        office_project_frame,
+        text="Education Office Projects",
+        font=("맑은 고딕", 16, "bold"),
+    ).grid(row=0, column=0, columnspan=3, padx=10, pady=(8, 3), sticky="w")
+    office_project_kpis = []
+    for index in range(3):
+        card = ctk.CTkFrame(office_project_frame)
+        card.grid(row=1, column=index, padx=5, pady=(3, 8), sticky="nsew")
+        office_project_frame.grid_columnconfigure(index, weight=1)
+        title = ctk.CTkLabel(card, text="-", text_color="gray")
+        title.pack(padx=8, pady=(7, 2))
+        value = ctk.CTkLabel(card, text="-", font=("맑은 고딕", 15, "bold"))
+        value.pack(padx=8, pady=(2, 8))
+        office_project_kpis.append((title, value))
+    project_category_tree = ttk.Treeview(
+        office_project_frame,
+        columns=("category", "projects", "budget"),
+        show="headings",
+        height=4,
+    )
+    for column, heading, width in (
+        ("category", "Category", 240),
+        ("projects", "Projects", 100),
+        ("budget", "Budget", 190),
+    ):
+        project_category_tree.heading(column, text=heading)
+        project_category_tree.column(column, width=width, anchor="center")
+    project_category_tree.grid(
+        row=2, column=0, columnspan=3, padx=8, pady=(2, 9), sticky="ew"
+    )
 
     sales_kpi_frame = ctk.CTkFrame(dashboard)
     sales_kpi_frame.pack(fill="x", pady=5)
@@ -373,6 +457,41 @@ def build_school_dashboard(parent, school_code, school_name):
         ):
             title_label.configure(text=title)
             value_label.configure(text=value)
+        for (title_label, value_label), (title, value) in zip(
+            g2b_kpi_labels, g2b_kpi_values(summary)
+        ):
+            title_label.configure(text=title)
+            value_label.configure(text=value)
+        g2b_latest_tree.delete(*g2b_latest_tree.get_children())
+        for contract in summary.get("g2b_summary", {}).get("latest_contracts", []):
+            g2b_latest_tree.insert(
+                "",
+                "end",
+                values=(
+                    contract.get("contract_date", ""),
+                    contract.get("product", ""),
+                    contract.get("vendor", ""),
+                    ContractService.format_amount(contract.get("amount")),
+                ),
+            )
+        for (title_label, value_label), (title, value) in zip(
+            office_project_kpis, project_portfolio_values(summary)
+        ):
+            title_label.configure(text=title)
+            value_label.configure(text=value)
+        project_category_tree.delete(*project_category_tree.get_children())
+        for category in summary.get("project_analytics", {}).get(
+            "category_distribution", []
+        ):
+            project_category_tree.insert(
+                "",
+                "end",
+                values=(
+                    category["category"],
+                    category["project_count"],
+                    ProjectService.format_budget(category["budget"]),
+                ),
+            )
         for (title_label, value_label), (title, value) in zip(
             sales_kpi_labels, sales_kpi_values(crm_summary["kpis"])
         ):

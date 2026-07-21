@@ -6,7 +6,12 @@ import threading
 import customtkinter as ctk
 from tkinter import messagebox, ttk
 
-from gui.import_wizard import open_contract_import_wizard
+from gui.import_wizard import (
+    open_contract_import_wizard,
+    open_education_office_import_wizard,
+    open_g2b_import_wizard,
+    open_schoolmarket_import_wizard,
+)
 from services.sync_service import SyncService
 
 
@@ -68,6 +73,24 @@ def open_sync_manager(parent):
         command=lambda: open_contract_import_wizard(manager, refresh_history),
     )
     import_button.pack(side="left", padx=5, pady=10)
+    ctk.CTkButton(
+        controls,
+        text="SchoolMarket 가져오기",
+        width=165,
+        command=lambda: open_schoolmarket_import_wizard(manager, refresh_history),
+    ).pack(side="left", padx=5, pady=10)
+    ctk.CTkButton(
+        controls,
+        text="G2B 가져오기",
+        width=130,
+        command=lambda: open_g2b_import_wizard(manager, refresh_history),
+    ).pack(side="left", padx=5, pady=10)
+    ctk.CTkButton(
+        controls,
+        text="교육청 사업",
+        width=125,
+        command=lambda: open_education_office_import_wizard(manager, refresh_history),
+    ).pack(side="left", padx=5, pady=10)
 
     progress_bar = ctk.CTkProgressBar(controls, width=220)
     progress_bar.set(0)

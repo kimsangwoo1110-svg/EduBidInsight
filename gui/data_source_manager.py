@@ -3,7 +3,12 @@
 import customtkinter as ctk
 from tkinter import ttk
 
-from gui.import_wizard import open_contract_import_wizard
+from gui.import_wizard import (
+    open_contract_import_wizard,
+    open_education_office_import_wizard,
+    open_g2b_import_wizard,
+    open_schoolmarket_import_wizard,
+)
 from services.import_history_service import ImportHistoryService
 
 
@@ -76,6 +81,24 @@ def open_data_source_manager(parent):
         text="계약 파일 가져오기",
         width=155,
         command=lambda: open_contract_import_wizard(manager, refresh_history),
+    ).pack(side="left", padx=5, pady=10)
+    ctk.CTkButton(
+        controls,
+        text="SchoolMarket 가져오기",
+        width=170,
+        command=lambda: open_schoolmarket_import_wizard(manager, refresh_history),
+    ).pack(side="left", padx=5, pady=10)
+    ctk.CTkButton(
+        controls,
+        text="G2B 가져오기",
+        width=135,
+        command=lambda: open_g2b_import_wizard(manager, refresh_history),
+    ).pack(side="left", padx=5, pady=10)
+    ctk.CTkButton(
+        controls,
+        text="교육청 사업 가져오기",
+        width=160,
+        command=lambda: open_education_office_import_wizard(manager, refresh_history),
     ).pack(side="left", padx=5, pady=10)
     ctk.CTkButton(
         controls,

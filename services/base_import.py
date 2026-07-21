@@ -7,6 +7,10 @@ from core.logger import get_logger
 from services.import_history_service import ImportHistoryService
 
 
+class ImportCancelled(Exception):
+    """Raised when an import cancellation reaches a transactional safe point."""
+
+
 class BaseImport(ABC):
     """Define the common load, validation, preview, save, and audit lifecycle."""
 
@@ -29,7 +33,7 @@ class BaseImport(ABC):
         """Validate loaded source data and return the validated representation."""
 
     @abstractmethod
-    def preview(self, limit=20):
+    def preview(self, limit=100):
         """Return a bounded preview without persisting source rows."""
 
     @abstractmethod

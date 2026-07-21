@@ -32,14 +32,42 @@ FIELD_LABELS = {
 }
 COLUMN_ALIASES = {
     "school_code": ("학교코드", "표준학교코드", "schoolcode", "schoolid"),
-    "school_name": ("학교명", "학교이름", "schoolname"),
+    "school_name": ("학교명", "기관명", "학교", "학교이름", "schoolname"),
     "contract_date": ("계약일", "계약일자", "계약날짜", "contractdate", "date"),
-    "product": ("품목", "품목명", "제품", "제품명", "물품명", "product", "item"),
+    "product": (
+        "품목", "품목명", "제품", "제품명", "물품명", "사업명",
+        "projectname", "product", "item",
+    ),
     "category": ("분류", "카테고리", "category", "type"),
     "vendor": ("업체", "업체명", "공급업체", "계약업체", "vendor", "supplier"),
     "quantity": ("수량", "quantity", "qty"),
-    "amount": ("금액", "계약금액", "총액", "amount", "price", "total"),
+    "amount": ("금액", "예산", "계약금액", "총액", "budget", "amount", "price", "total"),
 }
+COMMON_COLUMN_ALIASES = {
+    "school_name": ("학교명", "기관명", "학교", "schoolname"),
+    "project_name": ("사업명", "프로젝트명", "projectname"),
+    "budget": ("예산", "사업예산", "budget"),
+    "amount": ("금액", "계약금액", "총액", "amount"),
+    "vendor": ("업체", "업체명", "공급업체", "vendor", "supplier"),
+}
+
+
+def auto_map_common_columns(headers):
+    """Map the common cross-import names documented by the smart wizard."""
+    normalized = {
+        ContractImportConnector._normalize_header(header): header for header in headers
+    }
+    return {
+        field: next(
+            (
+                normalized[ContractImportConnector._normalize_header(alias)]
+                for alias in aliases
+                if ContractImportConnector._normalize_header(alias) in normalized
+            ),
+            "",
+        )
+        for field, aliases in COMMON_COLUMN_ALIASES.items()
+    }
 
 
 class ContractImportConnector(BaseConnector):
@@ -93,7 +121,7 @@ class ContractImportConnector(BaseConnector):
         contract_id = ContractService.save(**contract)
         return "inserted" if contract_id is not None else "skipped"
 
-    def preview(self, limit=20):
+    def preview(self, limit=100):
         """Return mapped preview rows with validation and duplicate messages."""
         preview_rows = []
         records = self.fetch()
@@ -114,14 +142,34 @@ class ContractImportConnector(BaseConnector):
                         for field in CONTRACT_COLUMNS
                     }
                     error = str(validation_error)
+                missing_fields = [
+                    field
+                    for field in REQUIRED_FIELDS
+                    if str(contract.get(field, "") or "").strip() == ""
+                ]
                 preview_rows.append(
-                    {"row_number": row_number, "contract": contract, "error": error}
+                    {
+                        "row_number": row_number,
+                        "contract": contract,
+                        "error": error,
+                        "missing_fields": missing_fields,
+                    }
                 )
         finally:
             close_records = getattr(records, "close", None)
             if close_records:
                 close_records()
         return preview_rows
+
+    def row_count(self):
+        """Count data rows without transforming or persisting them."""
+        records = self.fetch()
+        try:
+            return sum(1 for _ in records)
+        finally:
+            close_records = getattr(records, "close", None)
+            if close_records:
+                close_records()
 
     @classmethod
     def sheet_names(cls, file_path):

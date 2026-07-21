@@ -6,6 +6,7 @@ from tkinter import Menu, messagebox, ttk
 
 from gui.crm import build_school_crm
 from gui.dashboard import build_school_dashboard
+from gui.school_profile import build_school_profile, open_school_profile
 from services.contract_service import ContractService
 from services.excel_service import export_school_excel
 from services.project_service import ProjectService
@@ -96,6 +97,7 @@ def open_school_detail(parent, row):
     tabs = ctk.CTkTabview(detail)
     tabs.pack(fill="both", expand=True, padx=20, pady=10)
 
+    profile_tab = tabs.add("360° 프로필")
     school_tab = tabs.add("학교 정보")
     dashboard_tab = tabs.add("대시보드")
     crm_tab = tabs.add("CRM")
@@ -105,6 +107,8 @@ def open_school_detail(parent, row):
     market_tab = tabs.add("학교 시장")
     g2b_tab = tabs.add("G2B")
     ai_tab = tabs.add("AI 분석")
+
+    build_school_profile(profile_tab, row[SCHOOL_CODE_INDEX])
 
     school_frame = ctk.CTkFrame(school_tab)
     school_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -732,6 +736,11 @@ def open_school_window(parent):
             open_school_detail(popup, row)
         return "break"
 
+    def open_selected_profile():
+        row = selected_row()
+        if row is not None:
+            open_school_profile(popup, row[SCHOOL_CODE_INDEX])
+
     def open_selected_homepage():
         row = selected_row()
         homepage = normalize_homepage(row[HOMEPAGE_INDEX]) if row else None
@@ -741,6 +750,7 @@ def open_school_window(parent):
         webbrowser.open_new_tab(homepage)
 
     context_menu = Menu(popup, tearoff=False)
+    context_menu.add_command(label="360° 프로필", command=open_selected_profile)
     context_menu.add_command(label="상세 보기", command=open_selected_detail)
     context_menu.add_command(label="홈페이지 열기", command=open_selected_homepage)
     context_menu.add_separator()

@@ -40,6 +40,8 @@ class ProjectService:
         start_year=None,
         end_year=None,
         source="",
+        connection=None,
+        commit=True,
     ):
         if not str(school_code or "").strip():
             raise ValueError("school_code is required")
@@ -54,6 +56,8 @@ class ProjectService:
             start_year,
             end_year,
             source,
+            connection=connection,
+            commit=commit,
         )
 
     @staticmethod

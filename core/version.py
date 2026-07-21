@@ -1,0 +1,4 @@
+"""EduBid Insight release version."""
+
+__version__ = "1.0.0"
+BUILD_DATE = "2026-07-21"

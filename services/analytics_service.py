@@ -5,6 +5,8 @@ from datetime import date, timedelta
 from statistics import median
 
 from services.contract_service import ContractService
+from services.connectors.g2b_import import G2BService
+from services.connectors.education_office_import import EducationOfficeService
 from services.project_service import ProjectService
 from services.rule_service import RuleService
 
@@ -17,12 +19,31 @@ class AnalyticsService:
         projects = ProjectService.list_for_school(school_code)
         contracts = ContractService.search_by_school(school_code)
         project_summary = ProjectService.summarize(projects)
+        project_analytics = cls._project_analytics(projects)
         contract_summary = cls._contract_statistics(contracts)
+        g2b_ids = set(G2BService.contract_ids_for_school(school_code))
+        g2b_contracts = [contract for contract in contracts if contract["id"] in g2b_ids]
+        g2b_summary = {
+            "total_count": len(g2b_contracts),
+            "total_spending": sum(
+                float(contract.get("amount") or 0) for contract in g2b_contracts
+            ),
+            "latest_contracts": sorted(
+                g2b_contracts,
+                key=lambda contract: (
+                    str(contract.get("contract_date") or ""),
+                    int(contract.get("id") or 0),
+                ),
+                reverse=True,
+            )[:5],
+        }
         opportunity = cls._opportunity_score(projects, contracts)
         return {
             "school_code": str(school_code or "").strip(),
             "project_summary": project_summary,
+            "project_analytics": project_analytics,
             "contract_summary": contract_summary,
+            "g2b_summary": g2b_summary,
             "product_statistics": cls._group_statistics(contracts, "product"),
             "vendor_statistics": cls._group_statistics(contracts, "vendor"),
             "yearly_trend": cls._yearly_trend(projects, contracts),
@@ -31,10 +52,13 @@ class AnalyticsService:
             "kpis": {
                 "projects": project_summary["total_count"],
                 "project_budget": project_summary["total_budget"],
+                "active_projects": project_analytics["active_projects"],
                 "contracts": contract_summary["total_count"],
                 "contract_amount": contract_summary["total_amount"],
                 "vendors": contract_summary["vendor_count"],
                 "opportunity_score": opportunity["score"],
+                "g2b_contracts": g2b_summary["total_count"],
+                "g2b_spending": g2b_summary["total_spending"],
             },
         }
 
@@ -71,6 +95,65 @@ class AnalyticsService:
             ProjectService.list_for_school(school_code),
             ContractService.search_by_school(school_code),
         )
+
+    @classmethod
+    def summarize_loaded(cls, projects, contracts):
+        """Reuse analytics calculations for an already-loaded profile context."""
+        return {
+            "project_analytics": cls._project_analytics(projects),
+            "contract_summary": cls._contract_statistics(contracts),
+            "yearly_trend": cls._yearly_trend(projects, contracts),
+        }
+
+    @classmethod
+    def education_office_analytics(cls):
+        """Aggregate imported office projects for trends and office comparison."""
+        projects = EducationOfficeService.projects()
+        analytics = cls._project_analytics(projects)
+        offices = defaultdict(lambda: {"project_count": 0, "budget": 0.0})
+        for project in projects:
+            office = str(project.get("office") or "Unknown").strip() or "Unknown"
+            offices[office]["project_count"] += 1
+            offices[office]["budget"] += float(project.get("budget") or 0)
+        analytics["office_comparison"] = [
+            {"office": office, **values}
+            for office, values in sorted(
+                offices.items(), key=lambda item: (-item[1]["budget"], item[0].casefold())
+            )
+        ]
+        return analytics
+
+    @staticmethod
+    def _project_analytics(projects):
+        trends = defaultdict(lambda: {"project_count": 0, "budget": 0.0})
+        categories = defaultdict(lambda: {"project_count": 0, "budget": 0.0})
+        for project in projects:
+            year = project.get("fiscal_year") or project.get("start_year")
+            if year:
+                trends[int(year)]["project_count"] += 1
+                trends[int(year)]["budget"] += float(project.get("budget") or 0)
+            category = str(project.get("category") or "Other").strip() or "Other"
+            categories[category]["project_count"] += 1
+            categories[category]["budget"] += float(project.get("budget") or 0)
+        return {
+            "total_projects": len(projects),
+            "active_projects": sum(
+                project.get("status") in {"진행중", "예정", "Active"} for project in projects
+            ),
+            "completed_projects": sum(
+                project.get("status") in {"완료", "Completed"} for project in projects
+            ),
+            "total_budget": sum(float(project.get("budget") or 0) for project in projects),
+            "budget_trends": [
+                {"year": year, **trends[year]} for year in sorted(trends)
+            ],
+            "category_distribution": [
+                {"category": category, **values}
+                for category, values in sorted(
+                    categories.items(), key=lambda item: (-item[1]["budget"], item[0].casefold())
+                )
+            ],
+        }
 
     @staticmethod
     def _contract_statistics(contracts):
