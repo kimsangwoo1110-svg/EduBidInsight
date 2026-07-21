@@ -234,6 +234,25 @@ def create_database():
         )
         cursor.execute(
             """
+            CREATE TABLE IF NOT EXISTS import_history(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                imported_at TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                result TEXT NOT NULL,
+                imported_rows INTEGER NOT NULL DEFAULT 0
+                    CHECK(imported_rows >= 0)
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_import_history_imported_at
+            ON import_history(imported_at DESC)
+            """
+        )
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS recommendation_history(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 school_code TEXT NOT NULL,
@@ -764,6 +783,42 @@ def find_sync_history(limit=100):
             SELECT id, source, started_at, finished_at, inserted, updated,
                    skipped, errors, duration, status
             FROM sync_history
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (selected_limit,),
+        ).fetchall()
+
+
+def add_import_history(imported_at, source_type, filename, result, imported_rows):
+    """Persist one completed data import and return its identifier."""
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO import_history(
+                imported_at, source_type, filename, result, imported_rows
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                imported_at,
+                str(source_type or "").strip(),
+                str(filename or "").strip(),
+                str(result or "").strip(),
+                int(imported_rows or 0),
+            ),
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+def find_import_history(limit=100):
+    """Return newest import-history entries first."""
+    selected_limit = max(1, int(limit))
+    with closing(get_connection()) as conn:
+        return conn.execute(
+            """
+            SELECT id, imported_at, source_type, filename, result, imported_rows
+            FROM import_history
             ORDER BY id DESC
             LIMIT ?
             """,

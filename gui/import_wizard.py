@@ -13,6 +13,7 @@ from services.connectors.contract_import import (
     ContractImportConnector,
 )
 from services.contract_service import ContractService, REQUIRED_FIELDS
+from services.import_history_service import ImportHistoryService
 from services.sync_service import SyncService
 
 
@@ -221,8 +222,20 @@ def open_contract_import_wizard(parent, on_complete=None):
     def import_worker(connector):
         try:
             result = SyncService.synchronize_connector(connector, report_progress)
+            ImportHistoryService.record(
+                source_type=connector.source,
+                filename=connector.file_path,
+                result=result["status"],
+                imported_rows=result["inserted"],
+            )
             event_queue.put(("complete", result))
         except Exception as error:
+            ImportHistoryService.record(
+                source_type=connector.source,
+                filename=connector.file_path,
+                result="FAILED",
+                imported_rows=0,
+            )
             event_queue.put(("error", error))
 
     def process_events():

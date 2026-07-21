@@ -4,6 +4,7 @@ import threading
 import customtkinter as ctk
 from tkinter import messagebox
 
+from gui.data_source_manager import open_data_source_manager
 from gui.rule_manager import open_rule_manager
 from gui.school_window import open_school_window
 from gui.sync_manager import open_sync_manager
@@ -167,6 +168,16 @@ def run():
     )
     sync_btn.pack(pady=10)
     action_buttons.append(sync_btn)
+
+    source_manager_btn = ctk.CTkButton(
+        app,
+        text="데이터 소스 관리",
+        width=320,
+        height=45,
+        command=lambda: open_data_source_manager(app),
+    )
+    source_manager_btn.pack(pady=10)
+    action_buttons.append(source_manager_btn)
 
     office_btn = ctk.CTkButton(
         app,
