@@ -5,6 +5,7 @@ from datetime import date
 import customtkinter as ctk
 from tkinter import messagebox, ttk
 
+from gui.ui_theme import own_child_window
 from services.sales_activity_service import SalesActivityService
 
 
@@ -88,9 +89,9 @@ def build_school_crm(parent, school_code):
 
     def open_activity_form(activity=None):
         form = ctk.CTkToplevel(owner)
+        own_child_window(form, owner)
         form.title("영업 활동 수정" if activity else "영업 활동 추가")
         form.geometry("560x560")
-        form.transient(owner)
         form.grab_set()
 
         content = ctk.CTkFrame(form)

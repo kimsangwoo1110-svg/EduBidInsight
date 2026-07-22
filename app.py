@@ -1,9 +1,12 @@
 from core.app_settings import get_app_settings
 from core.logger import configure_logging, install_crash_logging
+from core.resources import configure_packaged_tk, configure_windows_identity
 from services import database
 
 
 def main():
+    configure_packaged_tk()
+    configure_windows_identity()
     settings = get_app_settings()
     settings.ensure_directories()
     settings.save()

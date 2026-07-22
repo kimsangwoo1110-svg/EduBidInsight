@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 .vscode/
 logs/*.log
+build/
+dist/
+*.spec.bak

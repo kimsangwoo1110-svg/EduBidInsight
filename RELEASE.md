@@ -6,16 +6,15 @@ Report Center supports School, Opportunity, CRM, Weekly, Monthly, and Executive 
 
 ## Runtime
 
-- Python 3.10 or newer
-- Dependencies listed in `requirements.txt`
-- SQLite database initialized automatically by `app.py`
+- `EduBidInsight.exe` is a self-contained, windowed Windows application.
+- Python is not required on end-user computers.
+- Writable data is initialized automatically under `%LOCALAPPDATA%\EduBidInsight`.
 
 ## Release verification
 
 ```bash
-pip install -r requirements.txt
-python -m pytest -q -p no:cacheprovider
-python app.py
+python -m pip install -r requirements-build.txt
+python build.py
 ```
 
-The automated release gate requires the complete test suite and module compilation to pass before packaging.
+The release build runs the complete test suite, creates the EXE and PDF guide, assembles `release/`, validates Windows metadata, launches the executable, verifies first-run settings and database creation, closes it normally to verify backup creation, and exports PDF, Excel, and CSV smoke-test reports.

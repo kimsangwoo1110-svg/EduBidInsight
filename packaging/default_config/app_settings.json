@@ -1,0 +1,10 @@
+{
+  "data_directory": "data",
+  "backup_directory": "backups",
+  "log_directory": "logs",
+  "auto_refresh_interval": 300,
+  "theme": "Light",
+  "window_size": "1500x900",
+  "recent_files": [],
+  "portable_mode": false
+}

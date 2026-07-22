@@ -6,14 +6,15 @@ from tkinter import messagebox, ttk
 from services.action_center import (
     ACTION_PRIORITIES, ACTION_STATUSES, ACTION_TYPES, ActionCenterService,
 )
+from gui.ui_theme import create_empty_state, own_child_window, update_empty_state
 
 
 def open_action_center(parent, action_service=ActionCenterService):
     window = ctk.CTkToplevel(parent)
+    own_child_window(window, parent)
     window.title("CRM Action Center")
     window.geometry("1280x780")
     window.minsize(960, 620)
-    window.transient(parent)
 
     content = ctk.CTkFrame(window, fg_color="transparent")
     content.pack(fill="both", expand=True, padx=14, pady=14)
@@ -69,6 +70,10 @@ def open_action_center(parent, action_service=ActionCenterService):
     tree.configure(yscrollcommand=scrollbar.set)
     tree.pack(side="left", fill="both", expand=True, padx=(8, 0), pady=8)
     scrollbar.pack(side="right", fill="y", padx=(0, 8), pady=8)
+    empty_state = create_empty_state(
+        table_frame,
+        "✓  표시할 CRM 액션이 없습니다.\nNo CRM actions match the current filters.",
+    )
 
     def selected_id():
         selection = tree.selection()
@@ -97,6 +102,7 @@ def open_action_center(parent, action_service=ActionCenterService):
                 action.status, action.priority, action.due_date or "",
                 action.completed_date or "",
             ))
+        update_empty_state(tree, empty_state)
 
     def change_status(status):
         action_id = selected_id()

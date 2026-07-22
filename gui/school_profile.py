@@ -5,6 +5,7 @@ from datetime import date, timedelta
 
 from services.action_center import ActionCenterService
 from services.school_profile_service import SchoolProfileService
+from gui.ui_theme import own_child_window
 
 
 STAT_CARDS = (
@@ -298,9 +299,9 @@ def build_school_profile(parent, school_code, profile_service=SchoolProfileServi
 def open_school_profile(parent, school_code):
     """Open the School 360° profile as a standalone resizable screen."""
     window = ctk.CTkToplevel(parent)
+    own_child_window(window, parent)
     window.title("School 360° View")
     window.geometry("1280x820")
     window.minsize(900, 620)
-    window.transient(parent)
     build_school_profile(window, school_code)
     return window

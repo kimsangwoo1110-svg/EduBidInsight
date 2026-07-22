@@ -1,53 +1,141 @@
 """Application settings, backup operations, diagnostics, and About dialog."""
 
 import platform
-import sys
-from pathlib import Path
+import subprocess
 
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 
 from core.version import BUILD_DATE, __version__
+from gui.ui_theme import COLORS, FONTS, card, own_child_window, primary_button, secondary_button
 from services.backup_service import BackupService
 from services.diagnostics_service import DiagnosticsService
 from services.migration_service import MigrationService
 from services.release_validator import ReleaseValidator
 
 
-def open_about_dialog(parent, settings):
-    """Open a compact standalone About dialog for menu integrations."""
-    window = ctk.CTkToplevel(parent)
-    window.title("About EduBid Insight Personal")
-    window.geometry("480x330")
-    window.resizable(False, False)
-    window.transient(parent)
-    version = MigrationService(settings.database_path).current_version()
+DEVELOPER = "김상우"
+LICENSE = "EduBid Insight Personal License"
+
+
+def _git_version():
+    """Return Git's display version when installed, without surfacing errors."""
+    try:
+        result = subprocess.run(
+            ["git", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "Not available"
+    return result.stdout.strip().removeprefix("git version ") or "Not available"
+
+
+def _about_details(settings):
+    return (
+        ("Version", __version__),
+        ("Build Date", BUILD_DATE),
+        ("Python Version", platform.python_version()),
+        ("Database Version", str(MigrationService(settings.database_path).current_version())),
+        ("Git Version", _git_version()),
+        ("Developer", DEVELOPER),
+        ("License", LICENSE),
+    )
+
+
+def _about_content(parent, settings, compact=False):
+    """Render the shared professional product identity and version panel."""
+    hero = ctk.CTkFrame(parent, fg_color="transparent")
+    hero.pack(fill="x", padx=24, pady=(24, 16))
     ctk.CTkLabel(
-        window,
-        text=(
-            f"EduBid Insight Personal\n\nVersion: {__version__}\n"
-            f"Python: {platform.python_version()}\nDatabase schema: {version}\n"
-            f"Build date: {BUILD_DATE}\n"
-            f"Mode: {'Portable' if settings.portable_mode else 'Installed'}"
-        ),
-        font=("맑은 고딕", 15),
-        justify="left",
-    ).pack(fill="both", expand=True, padx=28, pady=24)
-    ctk.CTkButton(window, text="Close", width=100, command=window.destroy).pack(pady=(0, 20))
+        hero,
+        text="EB",
+        width=64,
+        height=64,
+        corner_radius=14,
+        fg_color=COLORS["blue"],
+        text_color="white",
+        font=("Segoe UI", 22, "bold"),
+    ).pack(side="left")
+    identity = ctk.CTkFrame(hero, fg_color="transparent")
+    identity.pack(side="left", fill="x", expand=True, padx=(16, 0))
+    ctk.CTkLabel(
+        identity, text="EduBid Insight", font=FONTS["title"], anchor="w"
+    ).pack(fill="x")
+    ctk.CTkLabel(
+        identity,
+        text="Professional education sales intelligence for Windows",
+        font=FONTS["body"],
+        text_color=COLORS["muted"],
+        anchor="w",
+    ).pack(fill="x", pady=(3, 0))
+
+    details = card(parent)
+    details.pack(fill="both", expand=True, padx=24, pady=(0, 16))
+    for row, (label, value) in enumerate(_about_details(settings)):
+        ctk.CTkLabel(
+            details,
+            text=label,
+            font=FONTS["caption"],
+            text_color=COLORS["muted"],
+            anchor="w",
+        ).grid(row=row, column=0, padx=(18, 24), pady=6 if compact else 8, sticky="w")
+        ctk.CTkLabel(
+            details, text=value, font=FONTS["body_bold"], anchor="w"
+        ).grid(row=row, column=1, padx=(0, 18), pady=6 if compact else 8, sticky="w")
+    details.grid_columnconfigure(1, weight=1)
+    return details
+
+
+def open_about_dialog(parent, settings):
+    """Open the standalone product About dialog."""
+    window = ctk.CTkToplevel(parent)
+    own_child_window(window, parent)
+    window.title("About EduBid Insight")
+    window.geometry("620x570")
+    window.resizable(False, False)
+    window.configure(fg_color=COLORS["window"])
+    _about_content(window, settings)
+    primary_button(window, text="Close", width=110, command=window.destroy).pack(
+        anchor="e", padx=24, pady=(0, 22)
+    )
     return window
 
 
 def open_settings_dialog(parent, settings):
     window = ctk.CTkToplevel(parent)
-    window.title("Settings — EduBid Insight Personal")
-    window.geometry("820x650")
-    window.minsize(720, 560)
-    window.transient(parent)
+    own_child_window(window, parent)
+    window.title("Settings — EduBid Insight")
+    window.geometry("900x700")
+    window.minsize(800, 620)
     window.grab_set()
+    window.configure(fg_color=COLORS["window"])
 
-    tabs = ctk.CTkTabview(window)
-    tabs.pack(fill="both", expand=True, padx=14, pady=(14, 8))
-    for name in ("General", "Backup", "Performance", "Appearance", "About"):
+    heading = ctk.CTkFrame(window, fg_color="transparent")
+    heading.pack(fill="x", padx=24, pady=(20, 8))
+    ctk.CTkLabel(heading, text="Settings", font=FONTS["title"], anchor="w").pack(fill="x")
+    ctk.CTkLabel(
+        heading,
+        text="Manage application preferences, performance, backup, and appearance",
+        font=FONTS["body"],
+        text_color=COLORS["muted"],
+        anchor="w",
+    ).pack(fill="x", pady=(3, 0))
+
+    tabs = ctk.CTkTabview(
+        window,
+        fg_color=COLORS["surface"],
+        border_color=COLORS["border"],
+        border_width=1,
+        corner_radius=10,
+        segmented_button_selected_color=COLORS["blue"],
+        segmented_button_selected_hover_color=COLORS["blue_hover"],
+    )
+    tabs.pack(fill="both", expand=True, padx=24, pady=(8, 12))
+    for name in ("General", "Performance", "Backup", "Appearance", "About"):
         tabs.add(name)
 
     variables = {
@@ -71,7 +159,7 @@ def open_settings_dialog(parent, settings):
             if selected:
                 variable.set(selected)
 
-        ctk.CTkButton(tab, text="Browse", width=80, command=browse).grid(
+        secondary_button(tab, text="Browse…", width=92, command=browse).grid(
             row=row, column=2, padx=12, pady=10
         )
 
@@ -144,9 +232,9 @@ def open_settings_dialog(parent, settings):
 
     backup_buttons = ctk.CTkFrame(backup_tab, fg_color="transparent")
     backup_buttons.grid(row=1, column=0, columnspan=3, padx=8, pady=5, sticky="w")
-    ctk.CTkButton(backup_buttons, text="Create Backup", command=manual_backup).pack(side="left", padx=4)
-    ctk.CTkButton(backup_buttons, text="Restore Backup", command=restore_backup).pack(side="left", padx=4)
-    ctk.CTkButton(backup_buttons, text="Refresh List", command=refresh_backups).pack(side="left", padx=4)
+    primary_button(backup_buttons, text="＋  Create Backup", command=manual_backup).pack(side="left", padx=4)
+    secondary_button(backup_buttons, text="Restore Backup", command=restore_backup).pack(side="left", padx=4)
+    secondary_button(backup_buttons, text="↻  Refresh List", command=refresh_backups).pack(side="left", padx=4)
     refresh_backups()
 
     performance = tabs.tab("Performance")
@@ -158,30 +246,39 @@ def open_settings_dialog(parent, settings):
     )
     ctk.CTkLabel(
         performance, text="Allowed range: 30–86400 seconds. Changes apply after restart.",
-        text_color="gray", anchor="w",
+        text_color=COLORS["muted"], anchor="w",
     ).pack(fill="x", padx=14, pady=5)
 
     appearance = tabs.tab("Appearance")
     ctk.CTkLabel(appearance, text="Theme", anchor="w").pack(fill="x", padx=14, pady=(20, 5))
     ctk.CTkOptionMenu(
-        appearance, variable=variables["theme"], values=["Light", "Dark", "System"]
+        appearance,
+        variable=variables["theme"],
+        values=["Light", "Dark", "System"],
+        width=220,
+        height=36,
+        fg_color=COLORS["blue"],
+        button_color=COLORS["blue_hover"],
     ).pack(anchor="w", padx=14, pady=5)
+    ctk.CTkLabel(
+        appearance,
+        text="Choose a comfortable application theme. The new theme applies after Save.",
+        font=FONTS["caption"],
+        text_color=COLORS["muted"],
+        anchor="w",
+    ).pack(fill="x", padx=14, pady=8)
 
     about = tabs.tab("About")
-    database_version = MigrationService(settings.database_path).current_version()
-    about_text = (
-        f"EduBid Insight Personal\n\n"
-        f"Version: {__version__}\n"
-        f"Python: {platform.python_version()} ({sys.platform})\n"
-        f"Database schema: {database_version}\n"
-        f"Build date: {BUILD_DATE}\n"
-        f"Mode: {'Portable' if settings.portable_mode else 'Installed'}"
+    _about_content(about, settings, compact=True)
+    health_text = ctk.CTkTextbox(
+        about,
+        height=105,
+        corner_radius=8,
+        border_width=1,
+        border_color=COLORS["border"],
+        font=("Consolas", 11),
     )
-    ctk.CTkLabel(
-        about, text=about_text, font=("맑은 고딕", 15), anchor="w", justify="left"
-    ).pack(fill="x", padx=18, pady=18)
-    health_text = ctk.CTkTextbox(about, height=240)
-    health_text.pack(fill="both", expand=True, padx=14, pady=8)
+    health_text.pack(fill="both", expand=True, padx=24, pady=(0, 8))
     health_text.insert("1.0", "Run diagnostics or release validation.")
     health_text.configure(state="disabled")
 
@@ -204,9 +301,9 @@ def open_settings_dialog(parent, settings):
         show_health("\n".join(lines))
 
     about_buttons = ctk.CTkFrame(about, fg_color="transparent")
-    about_buttons.pack(fill="x", padx=10, pady=5)
-    ctk.CTkButton(about_buttons, text="Run Diagnostics", command=run_diagnostics).pack(side="left", padx=4)
-    ctk.CTkButton(about_buttons, text="Validate Release", command=validate_release).pack(side="left", padx=4)
+    about_buttons.pack(fill="x", padx=20, pady=(0, 8))
+    secondary_button(about_buttons, text="Run Diagnostics", command=run_diagnostics).pack(side="left", padx=4)
+    secondary_button(about_buttons, text="Validate Release", command=validate_release).pack(side="left", padx=4)
 
     def save_settings():
         try:
@@ -228,7 +325,7 @@ def open_settings_dialog(parent, settings):
         window.destroy()
 
     footer = ctk.CTkFrame(window, fg_color="transparent")
-    footer.pack(fill="x", padx=14, pady=(0, 12))
-    ctk.CTkButton(footer, text="Save", width=100, command=save_settings).pack(side="right", padx=5)
-    ctk.CTkButton(footer, text="Cancel", width=100, command=window.destroy).pack(side="right", padx=5)
+    footer.pack(fill="x", padx=24, pady=(0, 18))
+    primary_button(footer, text="Save Changes", width=130, command=save_settings).pack(side="right", padx=(8, 0))
+    secondary_button(footer, text="Cancel", width=100, command=window.destroy).pack(side="right")
     return window

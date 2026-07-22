@@ -4,6 +4,7 @@ import customtkinter as ctk
 from tkinter import ttk
 
 from services.opportunity_engine import OpportunityEngine
+from gui.ui_theme import own_child_window
 
 
 def opportunity_table_values(result):
@@ -22,10 +23,10 @@ def opportunity_table_values(result):
 def open_opportunity_dashboard(parent):
     """Open Top 20, highest-score, and recently-increased opportunity views."""
     window = ctk.CTkToplevel(parent)
+    own_child_window(window, parent)
     window.title("Opportunity Engine Dashboard")
     window.geometry("1320x820")
     window.minsize(980, 650)
-    window.transient(parent)
 
     header = ctk.CTkFrame(window)
     header.pack(fill="x", padx=16, pady=(16, 8))

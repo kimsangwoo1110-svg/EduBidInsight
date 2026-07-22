@@ -13,6 +13,7 @@ from gui.import_wizard import (
     open_schoolmarket_import_wizard,
 )
 from services.sync_service import SyncService
+from gui.ui_theme import own_child_window
 
 
 SYNC_HISTORY_COLUMNS = (
@@ -46,9 +47,9 @@ def sync_history_values(history):
 def open_sync_manager(parent):
     """Open the synchronization manager without blocking the main GUI."""
     manager = ctk.CTkToplevel(parent)
+    own_child_window(manager, parent)
     manager.title("데이터 동기화 관리")
     manager.geometry("1100x680")
-    manager.transient(parent)
 
     ctk.CTkLabel(
         manager,

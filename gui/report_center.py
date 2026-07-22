@@ -7,15 +7,16 @@ from tkinter import filedialog, messagebox
 
 from core.app_settings import get_app_settings
 from core.logger import get_logger
+from gui.ui_theme import own_child_window
 from services.report_service import EXPORT_FORMATS, REPORT_TYPES, ReportService
 
 
 def open_report_center(parent, report_service=ReportService):
     window = ctk.CTkToplevel(parent)
+    own_child_window(window, parent)
     window.title("EduBid Insight — Report Center")
     window.geometry("1180x760")
     window.minsize(900, 620)
-    window.transient(parent)
 
     shell = ctk.CTkFrame(window, fg_color="transparent")
     shell.pack(fill="both", expand=True, padx=16, pady=16)

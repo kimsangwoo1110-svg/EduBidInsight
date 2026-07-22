@@ -1,0 +1,10 @@
+{
+  "data_directory": "D:\\Project\\EduBidInsight\\data",
+  "backup_directory": "D:\\Project\\EduBidInsight\\backups",
+  "log_directory": "D:\\Project\\EduBidInsight\\logs",
+  "auto_refresh_interval": 300,
+  "theme": "Light",
+  "window_size": "2048x1089",
+  "recent_files": [],
+  "portable_mode": true
+}

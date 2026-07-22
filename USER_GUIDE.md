@@ -2,7 +2,9 @@
 
 ## Start the application
 
-Install the dependencies and run:
+For the Windows release, run `EduBidInsight.exe`. No Python installation is required.
+
+To run from source instead:
 
 ```bash
 pip install -r requirements.txt
@@ -21,7 +23,11 @@ Use School Search to open a School 360° profile. The profile combines school in
 
 ## Import data
 
-Open Data Source Manager, select the appropriate connector, preview the source file, confirm column mappings, and start the import. Imports support cancellation and transactional rollback.
+Open **Excel Import Center** from Data Sources and choose School, Education Office, School Market, NaraJangteo, or CRM. Download the official workbook from **Template Center**, or select/drag an existing `.xlsx` or `.csv` file into the wizard.
+
+The wizard proceeds through Select File → Analyze Workbook → Preview Data → Validate → Import → Summary. Korean and English column aliases are mapped automatically and can be corrected before validation. Invalid rows appear in a soft red highlight and can be exported to a separate Excel workbook for correction. The history table records the date, source, analyzed rows, successes, failures, duration, and final status.
+
+Existing transactional connectors retain their cancellation and rollback behavior. Always review the validation page before importing production data.
 
 ## CRM Action Center
 
@@ -41,11 +47,12 @@ Choose a report type, set optional filters, and select **Print Preview**. Export
 
 Data-directory changes apply after restarting the application.
 
-## Portable mode
+## Windows executable data
 
-Source distributions run in portable mode automatically. For a packaged executable, place an empty `portable.flag` file beside the application or set `EDUBID_PORTABLE=1`. Portable data, backups, configuration, and logs remain under the application directory.
+The production `EduBidInsight.exe` uses installed mode and stores writable settings, database, backups, imports, and logs under `%LOCALAPPDATA%\EduBidInsight`. The clean `config`, `data`, and `backups` folders in the release package are deployment/reference folders and contain no customer information.
+
+Source checkouts continue to run in portable mode. Advanced deployments can override packaged storage with the `EDUBID_PORTABLE` environment setting, but the standard Windows release should use its default installed-mode location.
 
 ## Troubleshooting
 
 Run Settings → About → **Run Diagnostics**. Review `logs/error.log` for handled failures and `logs/crash.log` for uncaught failures. Do not edit the SQLite database directly.
-

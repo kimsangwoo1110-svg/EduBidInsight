@@ -5,6 +5,7 @@ import json
 import customtkinter as ctk
 from tkinter import messagebox, ttk
 
+from gui.ui_theme import own_child_window
 from services.contract_service import ContractService
 from services.project_service import ProjectService
 from services.rule_service import RuleService
@@ -54,9 +55,9 @@ def rule_test_display_values(result):
 def open_rule_manager(parent):
     """Open the rule list with CRUD and test actions."""
     manager = ctk.CTkToplevel(parent)
+    own_child_window(manager, parent)
     manager.title("규칙 관리")
     manager.geometry("1150x720")
-    manager.transient(parent)
 
     ctk.CTkLabel(
         manager,
@@ -138,9 +139,9 @@ def open_rule_manager(parent):
 
     def open_rule_form(rule=None):
         form = ctk.CTkToplevel(manager)
+        own_child_window(form, manager)
         form.title("규칙 수정" if rule else "규칙 생성")
         form.geometry("760x690")
-        form.transient(manager)
         form.grab_set()
 
         content = ctk.CTkFrame(form)
@@ -309,9 +310,9 @@ def open_rule_manager(parent):
 def open_rule_test_window(parent, rule):
     """Open a school selector and evaluate exactly one rule."""
     test_window = ctk.CTkToplevel(parent)
+    own_child_window(test_window, parent)
     test_window.title("규칙 테스트")
     test_window.geometry("850x620")
-    test_window.transient(parent)
 
     ctk.CTkLabel(
         test_window,

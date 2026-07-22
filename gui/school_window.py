@@ -7,6 +7,7 @@ from tkinter import Menu, messagebox, ttk
 from gui.crm import build_school_crm
 from gui.dashboard import build_school_dashboard
 from gui.school_profile import build_school_profile, open_school_profile
+from gui.ui_theme import create_empty_state, own_child_window, update_empty_state
 from services.contract_service import ContractService
 from services.excel_service import export_school_excel
 from services.project_service import ProjectService
@@ -85,6 +86,7 @@ def normalize_homepage(homepage):
 def open_school_detail(parent, row):
     """Open the detail dialog for a single school record."""
     detail = ctk.CTkToplevel(parent)
+    own_child_window(detail, parent)
     detail.title(row[SCHOOL_NAME_INDEX])
     detail.geometry("1180x700")
 
@@ -296,9 +298,9 @@ def open_school_detail(parent, row):
 
     def open_project_form(project=None):
         form = ctk.CTkToplevel(detail)
+        own_child_window(form, detail)
         form.title("프로젝트 수정" if project else "프로젝트 등록")
         form.geometry("460x440")
-        form.transient(detail)
         form.grab_set()
 
         fields = ctk.CTkFrame(form)
@@ -570,6 +572,7 @@ def open_school_detail(parent, row):
 def open_school_window(parent):
     """Open the school search window and its result actions."""
     popup = ctk.CTkToplevel(parent)
+    own_child_window(popup, parent)
     popup.title("학교 검색")
     popup.geometry("1400x850")
 
@@ -703,6 +706,10 @@ def open_school_window(parent):
         )
 
     tree.pack(fill="both", expand=True, padx=20, pady=10)
+    empty_state = create_empty_state(
+        popup,
+        "⌕  검색 조건에 맞는 학교가 없습니다.\nNo schools match your search.",
+    )
 
     def copy_text(value):
         popup.clipboard_clear()
@@ -828,6 +835,7 @@ def open_school_window(parent):
 
         result_count.configure(text=f"검색 결과 : {len(rows_by_school_code):,}건")
         update_headings()
+        update_empty_state(tree, empty_state)
 
     def reset():
         keyword.delete(0, "end")
