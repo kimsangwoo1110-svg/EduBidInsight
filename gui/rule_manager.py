@@ -61,7 +61,7 @@ def open_rule_manager(parent):
 
     ctk.CTkLabel(
         manager,
-        text="Opportunity Rule Manager",
+        text="영업 기회 규칙 관리",
         font=("맑은 고딕", 25, "bold"),
     ).pack(pady=(18, 4))
     ctk.CTkLabel(
@@ -345,12 +345,12 @@ def open_rule_test_window(parent, rule):
 
     result_frame = ctk.CTkFrame(test_window)
     result_frame.pack(fill="x", padx=18, pady=8)
-    match_result = ctk.CTkLabel(result_frame, text="Match: -", anchor="w")
+    match_result = ctk.CTkLabel(result_frame, text="일치: -", anchor="w")
     match_result.pack(fill="x", padx=12, pady=(10, 3))
-    score_result = ctk.CTkLabel(result_frame, text="Score: -", anchor="w")
+    score_result = ctk.CTkLabel(result_frame, text="점수: -", anchor="w")
     score_result.pack(fill="x", padx=12, pady=3)
     reason_result = ctk.CTkLabel(
-        result_frame, text="Reason: -", anchor="w", justify="left", wraplength=770
+        result_frame, text="근거: -", anchor="w", justify="left", wraplength=770
     )
     reason_result.pack(fill="x", padx=12, pady=(3, 10))
 
@@ -386,9 +386,9 @@ def open_rule_test_window(parent, rule):
             messagebox.showerror("규칙 테스트 오류", str(error), parent=test_window)
             return
         match, score, reason = rule_test_display_values(result)
-        match_result.configure(text=f"Match: {match}")
-        score_result.configure(text=f"Score: {score}")
-        reason_result.configure(text=f"Reason: {reason}")
+        match_result.configure(text=f"일치 여부: {match}")
+        score_result.configure(text=f"점수: {score}")
+        reason_result.configure(text=f"사유: {reason}")
 
     ctk.CTkButton(
         search_frame, text="학교 검색", width=110, command=search_schools

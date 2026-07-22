@@ -313,11 +313,11 @@ class CRMImport(MappedWorkbookImport):
 
 
 PROFILES = {
-    "school": ImportProfile("school", "학교 가져오기\nSchool Import", "School", "School_Import_Template.xlsx", SCHOOL_COLUMNS, SCHOOL_FIELD_LABELS, SCHOOL_REQUIRED_FIELDS, SchoolImport),
-    "education_office": ImportProfile("education_office", "교육청 가져오기\nEducation Office Import", "Education Office", "Education_Office_Import_Template.xlsx", EDUCATION_OFFICE_COLUMNS, EDUCATION_OFFICE_FIELD_LABELS, EDUCATION_OFFICE_REQUIRED_FIELDS, EducationOfficeImport),
-    "schoolmarket": ImportProfile("schoolmarket", "학교장터 가져오기\nSchool Market Import", "School Market", "School_Market_Import_Template.xlsx", SCHOOLMARKET_COLUMNS, SCHOOLMARKET_FIELD_LABELS, SCHOOLMARKET_REQUIRED_FIELDS, SchoolMarketImport),
-    "g2b": ImportProfile("g2b", "나라장터 가져오기\nNaraJangteo Import", "NaraJangteo", "NaraJangteo_Import_Template.xlsx", G2B_COLUMNS, G2B_FIELD_LABELS, G2B_REQUIRED_FIELDS, G2BImport),
-    "crm": ImportProfile("crm", "CRM 가져오기\nCRM Import", "CRM", "CRM_Import_Template.xlsx", CRM_COLUMNS, CRM_FIELD_LABELS, CRM_REQUIRED_FIELDS, CRMImport),
+    "school": ImportProfile("school", "학교 가져오기", "학교", "School_Import_Template.xlsx", SCHOOL_COLUMNS, SCHOOL_FIELD_LABELS, SCHOOL_REQUIRED_FIELDS, SchoolImport),
+    "education_office": ImportProfile("education_office", "교육청 가져오기", "교육청", "Education_Office_Import_Template.xlsx", EDUCATION_OFFICE_COLUMNS, EDUCATION_OFFICE_FIELD_LABELS, EDUCATION_OFFICE_REQUIRED_FIELDS, EducationOfficeImport),
+    "schoolmarket": ImportProfile("schoolmarket", "학교장터 가져오기", "학교장터", "School_Market_Import_Template.xlsx", SCHOOLMARKET_COLUMNS, SCHOOLMARKET_FIELD_LABELS, SCHOOLMARKET_REQUIRED_FIELDS, SchoolMarketImport),
+    "g2b": ImportProfile("g2b", "나라장터 가져오기", "나라장터", "NaraJangteo_Import_Template.xlsx", G2B_COLUMNS, G2B_FIELD_LABELS, G2B_REQUIRED_FIELDS, G2BImport),
+    "crm": ImportProfile("crm", "고객 활동 가져오기", "고객 활동", "CRM_Import_Template.xlsx", CRM_COLUMNS, CRM_FIELD_LABELS, CRM_REQUIRED_FIELDS, CRMImport),
 }
 
 

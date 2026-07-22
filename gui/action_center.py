@@ -6,30 +6,30 @@ from tkinter import messagebox, ttk
 from services.action_center import (
     ACTION_PRIORITIES, ACTION_STATUSES, ACTION_TYPES, ActionCenterService,
 )
-from gui.ui_theme import create_empty_state, own_child_window, update_empty_state
+from gui.ui_theme import FONTS, create_empty_state, own_child_window, update_empty_state
 
 
 def open_action_center(parent, action_service=ActionCenterService):
     window = ctk.CTkToplevel(parent)
     own_child_window(window, parent)
-    window.title("CRM Action Center")
+    window.title("고객 활동 센터")
     window.geometry("1280x780")
     window.minsize(960, 620)
 
     content = ctk.CTkFrame(window, fg_color="transparent")
     content.pack(fill="both", expand=True, padx=14, pady=14)
     ctk.CTkLabel(
-        content, text="CRM Action Center", font=("맑은 고딕", 26, "bold"), anchor="w"
+        content, text="고객 활동 센터", font=FONTS["title"], anchor="w"
     ).pack(fill="x", pady=(0, 10))
 
     cards = ctk.CTkFrame(content, fg_color="transparent")
     cards.pack(fill="x", pady=5)
     card_labels = {}
     for column, (key, title) in enumerate((
-        ("today_actions", "Today's Actions"),
-        ("overdue_actions", "Overdue Actions"),
-        ("completed_this_week", "Completed This Week"),
-        ("upcoming_visits", "Upcoming Visits"),
+        ("today_actions", "오늘의 액션"),
+        ("overdue_actions", "지연된 액션"),
+        ("completed_this_week", "이번 주 완료"),
+        ("upcoming_visits", "예정된 방문"),
     )):
         cards.grid_columnconfigure(column, weight=1, uniform="action-card")
         card = ctk.CTkFrame(cards)
@@ -41,9 +41,9 @@ def open_action_center(parent, action_service=ActionCenterService):
 
     filters = ctk.CTkFrame(content)
     filters.pack(fill="x", pady=10)
-    status_var = ctk.StringVar(value="All")
-    priority_var = ctk.StringVar(value="All")
-    type_var = ctk.StringVar(value="All")
+    status_var = ctk.StringVar(value="전체")
+    priority_var = ctk.StringVar(value="전체")
+    type_var = ctk.StringVar(value="전체")
     school_var = ctk.StringVar()
     due_var = ctk.StringVar()
 
@@ -51,17 +51,17 @@ def open_action_center(parent, action_service=ActionCenterService):
         ctk.CTkLabel(filters, text=label).grid(row=0, column=column, padx=(10, 4), pady=10)
         widget.grid(row=0, column=column + 1, padx=(0, 8), pady=10, sticky="ew")
 
-    add_filter("Status", ctk.CTkOptionMenu(filters, variable=status_var, values=["All", *ACTION_STATUSES]), 0)
-    add_filter("Priority", ctk.CTkOptionMenu(filters, variable=priority_var, values=["All", *ACTION_PRIORITIES]), 2)
-    add_filter("School", ctk.CTkEntry(filters, textvariable=school_var, width=130), 4)
-    add_filter("Type", ctk.CTkOptionMenu(filters, variable=type_var, values=["All", *ACTION_TYPES]), 6)
-    add_filter("Due date", ctk.CTkEntry(filters, textvariable=due_var, placeholder_text="YYYY-MM-DD", width=120), 8)
+    add_filter("상태", ctk.CTkOptionMenu(filters, variable=status_var, values=["전체", *ACTION_STATUSES]), 0)
+    add_filter("우선순위", ctk.CTkOptionMenu(filters, variable=priority_var, values=["전체", *ACTION_PRIORITIES]), 2)
+    add_filter("학교", ctk.CTkEntry(filters, textvariable=school_var, width=130), 4)
+    add_filter("유형", ctk.CTkOptionMenu(filters, variable=type_var, values=["전체", *ACTION_TYPES]), 6)
+    add_filter("예정일", ctk.CTkEntry(filters, textvariable=due_var, placeholder_text="YYYY-MM-DD", width=120), 8)
 
     table_frame = ctk.CTkFrame(content)
     table_frame.pack(fill="both", expand=True)
     columns = ("id", "school", "type", "title", "status", "priority", "due", "completed")
     tree = ttk.Treeview(table_frame, columns=columns, show="headings", selectmode="browse")
-    headings = ("ID", "School", "Type", "Title", "Status", "Priority", "Due", "Completed")
+    headings = ("번호", "학교", "유형", "제목", "상태", "우선순위", "예정일", "완료일")
     widths = (55, 105, 105, 320, 100, 85, 105, 105)
     for key, title, width in zip(columns, headings, widths):
         tree.heading(key, text=title)
@@ -72,7 +72,7 @@ def open_action_center(parent, action_service=ActionCenterService):
     scrollbar.pack(side="right", fill="y", padx=(0, 8), pady=8)
     empty_state = create_empty_state(
         table_frame,
-        "✓  표시할 CRM 액션이 없습니다.\nNo CRM actions match the current filters.",
+        "✓  현재 조건에 표시할 고객 액션이 없습니다.",
     )
 
     def selected_id():
@@ -87,14 +87,14 @@ def open_action_center(parent, action_service=ActionCenterService):
             tree.delete(item)
         try:
             actions = action_service.search(
-                status="" if status_var.get() == "All" else status_var.get(),
-                priority="" if priority_var.get() == "All" else priority_var.get(),
+                status="" if status_var.get() == "전체" else status_var.get(),
+                priority="" if priority_var.get() == "전체" else priority_var.get(),
                 school=school_var.get(),
-                action_type="" if type_var.get() == "All" else type_var.get(),
+                action_type="" if type_var.get() == "전체" else type_var.get(),
                 due_date=due_var.get() or None,
             )
         except ValueError as error:
-            messagebox.showerror("Invalid filter", str(error), parent=window)
+            messagebox.showerror("검색 조건 오류", str(error), parent=window)
             return
         for action in actions:
             tree.insert("", "end", values=(
@@ -107,17 +107,17 @@ def open_action_center(parent, action_service=ActionCenterService):
     def change_status(status):
         action_id = selected_id()
         if action_id is None:
-            messagebox.showinfo("Select action", "Select an action first.", parent=window)
+            messagebox.showinfo("액션 선택", "먼저 액션을 선택하세요.", parent=window)
             return
         action_service.update_status(action_id, status)
         refresh()
 
     buttons = ctk.CTkFrame(content, fg_color="transparent")
     buttons.pack(fill="x", pady=(10, 0))
-    ctk.CTkButton(buttons, text="Search", width=100, command=refresh).pack(side="left", padx=4)
-    ctk.CTkButton(buttons, text="In Progress", width=120, command=lambda: change_status("In Progress")).pack(side="left", padx=4)
-    ctk.CTkButton(buttons, text="Complete", width=100, command=lambda: change_status("Completed")).pack(side="left", padx=4)
-    ctk.CTkButton(buttons, text="Cancel", width=100, fg_color="#6B7280", command=lambda: change_status("Cancelled")).pack(side="left", padx=4)
+    ctk.CTkButton(buttons, text="조회", width=90, command=refresh).pack(side="left", padx=4)
+    ctk.CTkButton(buttons, text="진행 중", width=105, command=lambda: change_status("In Progress")).pack(side="left", padx=4)
+    ctk.CTkButton(buttons, text="완료", width=90, command=lambda: change_status("Completed")).pack(side="left", padx=4)
+    ctk.CTkButton(buttons, text="취소", width=90, fg_color="#6B7280", command=lambda: change_status("Cancelled")).pack(side="left", padx=4)
 
     refresh()
     return window

@@ -23,10 +23,10 @@ from services.import_center import (
 from services.smart_import import MappingStore, SmartContractImport, format_import_summary
 
 
-UNMAPPED = "선택 안 함 · Unmapped"
+UNMAPPED = "선택 안 함"
 STEP_TITLES = (
-    "파일 선택\nSelect File", "통합문서 분석\nAnalyze Workbook", "데이터 미리보기\nPreview Data",
-    "검증\nValidate", "가져오기\nImport", "결과 요약\nSummary",
+    "파일 선택", "통합문서 분석", "데이터 미리보기",
+    "검증", "가져오기", "결과 요약",
 )
 
 
@@ -53,11 +53,25 @@ def preview_table_values(preview_row):
     )
 
 
-def progress_text(progress):
+def _localized_progress_text(progress):
     percentage = max(0, min(100, int(progress.get("percentage", 0) or 0)))
     processed = max(0, int(progress.get("processed", 0) or 0))
     total = max(0, int(progress.get("total", 0) or 0))
-    return f"{progress.get('stage', 'Reading file...')}\n{percentage}% · current row {processed:,} / {total:,}"
+    stage = {
+        "Reading file...": "파일 읽는 중…", "Validating...": "검증 중…",
+        "Importing...": "가져오는 중…", "Saving...": "저장 중…",
+    }.get(progress.get("stage"), progress.get("stage", "파일 읽는 중…"))
+    return f"{stage}\n{percentage}% · 현재 행 {processed:,} / {total:,}"
+
+
+def progress_text(progress):
+    """Backward-compatible helper; the visible wizard uses Korean-only text."""
+    processed = max(0, int(progress.get("processed", 0) or 0))
+    total = max(0, int(progress.get("total", 0) or 0))
+    return (
+        f"{_localized_progress_text(progress)}"
+        f" (current row {processed:,} / {total:,})"
+    )
 
 
 def open_school_import_wizard(parent, on_complete=None):
@@ -80,9 +94,16 @@ def open_crm_import_wizard(parent, on_complete=None):
     return _open_import_wizard(parent, on_complete, "crm")
 
 
+def open_profile_import_wizard(parent, profile_key, on_complete=None):
+    """Open an Import Center profile selected by the connector registry."""
+    if profile_key not in PROFILES:
+        raise ValueError(f"지원하지 않는 가져오기 프로필: {profile_key}")
+    return _open_import_wizard(parent, on_complete, profile_key)
+
+
 def open_contract_import_wizard(parent, on_complete=None):
     legacy = ImportProfile(
-        "contract", "계약 가져오기\nContract Import", "Contract", "Contract_Template.xlsx",
+        "contract", "계약 가져오기", "계약", "Contract_Template.xlsx",
         CONTRACT_COLUMNS, FIELD_LABELS, REQUIRED_FIELDS, ContractImportConnector,
     )
     return _open_import_wizard(parent, on_complete, "contract", profile_override=legacy)
@@ -92,7 +113,7 @@ def _open_import_wizard(parent, on_complete=None, source_kind="school", profile_
     profile = profile_override or PROFILES[source_kind]
     window = ctk.CTkToplevel(parent)
     own_child_window(window, parent)
-    window.title("Excel 가져오기 센터 · Excel Import Center")
+    window.title("Excel 가져오기 센터")
     window.geometry("1260x800")
     window.minsize(1040, 700)
 
@@ -105,7 +126,7 @@ def _open_import_wizard(parent, on_complete=None, source_kind="school", profile_
     header = ctk.CTkFrame(window, fg_color=COLORS["surface"], corner_radius=0)
     header.pack(fill="x")
     ctk.CTkLabel(header, text="Excel 가져오기 센터", font=FONTS["title"], anchor="w").pack(fill="x", padx=24, pady=(16, 1))
-    ctk.CTkLabel(header, text=f"Excel Import Center  ·  {profile.title.replace(chr(10), ' / ')}", font=FONTS["body"], text_color=COLORS["muted"], anchor="w").pack(fill="x", padx=24, pady=(0, 12))
+    ctk.CTkLabel(header, text=f"{profile.title} · 파일 분석, 검증 및 등록", font=FONTS["body"], text_color=COLORS["muted"], anchor="w").pack(fill="x", padx=24, pady=(0, 12))
 
     step_bar = ctk.CTkFrame(window, fg_color="transparent")
     step_bar.pack(fill="x", padx=20, pady=(12, 4))
@@ -124,13 +145,13 @@ def _open_import_wizard(parent, on_complete=None, source_kind="school", profile_
     drop_card.pack(fill="both", expand=True, padx=55, pady=42)
     drop_icon = ctk.CTkLabel(drop_card, text="⇩", font=("Segoe UI Symbol", 42), text_color=COLORS["blue"])
     drop_icon.pack(pady=(70, 10))
-    file_label = ctk.CTkLabel(drop_card, text="Excel 파일을 여기에 놓으세요.\nDrop an Excel file here.", font=FONTS["section"], justify="center")
+    file_label = ctk.CTkLabel(drop_card, text="Excel 파일을 여기에 놓으세요.", font=FONTS["section"], justify="center")
     file_label.pack(pady=8)
     file_detail = ctk.CTkLabel(drop_card, text=".xlsx 또는 .csv · 최대 파일 크기는 시스템 메모리에 따릅니다.", font=FONTS["caption"], text_color=COLORS["muted"])
     file_detail.pack(pady=(0, 22))
-    select_button = primary_button(drop_card, text="파일 선택  Select File", width=180)
+    select_button = primary_button(drop_card, text="파일 선택", width=150)
     select_button.pack(pady=6)
-    secondary_button(drop_card, text="템플릿 센터  Template Center", width=210, command=lambda: open_template_center(window)).pack(pady=(6, 50))
+    secondary_button(drop_card, text="템플릿 센터", width=160, command=lambda: open_template_center(window)).pack(pady=(6, 50))
 
     # 2. Workbook analysis and editable automatic mapping.
     analysis_top = card(pages[1])
@@ -139,7 +160,7 @@ def _open_import_wizard(parent, on_complete=None, source_kind="school", profile_
     analysis_label.pack(side="left", fill="x", expand=True, padx=16, pady=14)
     sheet_selector = ctk.CTkComboBox(analysis_top, values=["-"], width=220)
     sheet_selector.pack(side="right", padx=16, pady=10)
-    mapping_frame = ctk.CTkScrollableFrame(pages[1], label_text="자동 열 매핑 · Automatic Column Mapping", label_font=FONTS["section"])
+    mapping_frame = ctk.CTkScrollableFrame(pages[1], label_text="자동 열 매핑", label_font=FONTS["section"])
     mapping_frame.pack(fill="both", expand=True, padx=6, pady=8)
     mapping_message = ctk.CTkLabel(mapping_frame, text="", text_color=COLORS["muted"], anchor="w")
     mapping_message.grid(row=0, column=0, columnspan=4, padx=12, pady=(6, 12), sticky="ew")
@@ -168,29 +189,29 @@ def _open_import_wizard(parent, on_complete=None, source_kind="school", profile_
 
     preview_tree, preview_status, _ = make_table(pages[2])
     validation_tree, validation_status, validation_panel = make_table(pages[3])
-    export_failed_button = secondary_button(validation_panel, text="실패 행 내보내기  Export Failed Rows", width=240)
+    export_failed_button = secondary_button(validation_panel, text="실패 행 내보내기", width=180)
     export_failed_button.pack(anchor="e", padx=14, pady=(0, 12))
 
     # 5. Import progress.
     progress_card = card(pages[4]); progress_card.pack(fill="both", expand=True, padx=60, pady=50)
-    progress_status = ctk.CTkLabel(progress_card, text=progress_text({}), font=FONTS["section"], justify="center")
+    progress_status = ctk.CTkLabel(progress_card, text=_localized_progress_text({}), font=FONTS["section"], justify="center")
     progress_status.pack(pady=(110, 22))
     progress_bar = ctk.CTkProgressBar(progress_card, width=620, height=10, progress_color=COLORS["blue"])
     progress_bar.set(0); progress_bar.pack(pady=8)
-    cancel_button = secondary_button(progress_card, text="가져오기 취소  Cancel Import", width=190)
+    cancel_button = secondary_button(progress_card, text="가져오기 취소", width=150)
     cancel_button.pack(pady=26)
 
     # 6. Summary.
     summary_card = card(pages[5]); summary_card.pack(fill="both", expand=True, padx=24, pady=14)
     summary_box = ctk.CTkTextbox(summary_card, wrap="word", font=FONTS["body"])
     summary_box.pack(fill="both", expand=True, padx=16, pady=16)
-    secondary_button(summary_card, text="요약 복사  Copy Summary", width=170, command=lambda: _copy_summary(window, summary_box)).pack(anchor="e", padx=16, pady=(0, 14))
+    secondary_button(summary_card, text="요약 복사", width=120, command=lambda: _copy_summary(window, summary_box)).pack(anchor="e", padx=16, pady=(0, 14))
 
     footer = ctk.CTkFrame(window, fg_color=COLORS["surface"], corner_radius=0)
     footer.pack(fill="x")
-    back_button = secondary_button(footer, text="이전  Back", width=115)
+    back_button = secondary_button(footer, text="이전", width=100)
     back_button.pack(side="left", padx=20, pady=12)
-    next_button = primary_button(footer, text="다음  Next", width=135)
+    next_button = primary_button(footer, text="다음", width=110)
     next_button.pack(side="right", padx=20, pady=12)
 
     def current_mapping():
@@ -202,7 +223,7 @@ def _open_import_wizard(parent, on_complete=None, source_kind="school", profile_
             active, complete = number == index, number < index
             label.configure(fg_color=COLORS["blue"] if active else (COLORS["green_tint"] if complete else COLORS["gray_tint"]), text_color="white" if active else (COLORS["green"] if complete else COLORS["muted"]))
         back_button.configure(state="disabled" if index in (0, 4, 5) else "normal")
-        next_button.configure(text="닫기  Close" if index == 5 else ("가져오기  Import" if index == 3 else "다음  Next"), state="disabled" if index == 4 else "normal")
+        next_button.configure(text="닫기" if index == 5 else ("가져오기" if index == 3 else "다음"), state="disabled" if index == 4 else "normal")
 
     def apply_mapping():
         automatic = profile.adapter.auto_map(state["headers"])
@@ -223,24 +244,24 @@ def _open_import_wizard(parent, on_complete=None, source_kind="school", profile_
             sheets = profile.adapter.sheet_names(file_path); headers = profile.adapter.headers(file_path, sheets[0])
             if not headers: raise ValueError("첫 번째 행에서 열 이름을 찾을 수 없습니다.")
         except (OSError, ValueError, KeyError) as error:
-            messagebox.showerror("분석 오류 · Analysis Error", str(error), parent=window); return
+            messagebox.showerror("분석 오류", str(error), parent=window); return
         state.update(file_path=file_path, sheets=sheets, headers=headers, rows=[], invalid=[])
         file_label.configure(text=os.path.basename(file_path)); file_detail.configure(text=file_path)
         sheet_selector.configure(values=sheets); sheet_selector.set(sheets[0]); apply_mapping()
-        analysis_label.configure(text=f"{os.path.basename(file_path)}  ·  {len(headers)} columns  ·  {len(sheets)} sheet(s)")
+        analysis_label.configure(text=f"{os.path.basename(file_path)}  ·  열 {len(headers)}개  ·  시트 {len(sheets)}개")
         try: get_app_settings().add_recent_file(file_path).save()
         except (OSError, ValueError): get_logger("settings").exception("failed to update recent import files")
         display_step(1)
 
     def choose_file():
-        selected = filedialog.askopenfilename(parent=window, title="Excel 파일 선택 · Select File", filetypes=(("Excel / CSV", "*.xlsx *.csv"), ("Excel", "*.xlsx"), ("CSV", "*.csv")))
+        selected = filedialog.askopenfilename(parent=window, title="Excel 파일 선택", filetypes=(("Excel / CSV", "*.xlsx *.csv"), ("Excel", "*.xlsx"), ("CSV", "*.csv")))
         if selected: analyze_file(selected)
 
     def change_sheet(_choice=None):
         if not state["file_path"]: return
         try:
             state["headers"] = profile.adapter.headers(state["file_path"], sheet_selector.get()); apply_mapping()
-        except (OSError, ValueError, KeyError) as error: messagebox.showerror("시트 오류 · Sheet Error", str(error), parent=window)
+        except (OSError, ValueError, KeyError) as error: messagebox.showerror("시트 오류", str(error), parent=window)
 
     def create_importer():
         mapping = current_mapping(); profile.adapter.validate_mapping(mapping, state["headers"])
@@ -262,13 +283,13 @@ def _open_import_wizard(parent, on_complete=None, source_kind="school", profile_
     def fill_table(tree, rows):
         visible_fields = profile.fields[:7]; columns = ("row", *visible_fields, "validation")
         tree.configure(columns=columns)
-        tree.heading("row", text="행\nRow"); tree.column("row", width=58, minwidth=48, anchor="center")
+        tree.heading("row", text="행"); tree.column("row", width=58, minwidth=48, anchor="center")
         for field in visible_fields:
             tree.heading(field, text=profile.labels[field]); tree.column(field, width=145, minwidth=90, anchor="center")
-        tree.heading("validation", text="검증 결과\nValidation"); tree.column("validation", width=260, minwidth=180, anchor="w")
+        tree.heading("validation", text="검증 결과"); tree.column("validation", width=260, minwidth=180, anchor="w")
         tree.delete(*tree.get_children())
         for item in rows[:500]:
-            error = item["error"] or "정상 · Valid"
+            error = item["error"] or "정상"
             tree.insert("", "end", values=(item["row_number"], *(item["values"].get(field, "") for field in visible_fields), error), tags=(("invalid",) if item["error"] else ()))
         stripe_treeview(tree)
 
@@ -276,10 +297,10 @@ def _open_import_wizard(parent, on_complete=None, source_kind="school", profile_
         try:
             importer = create_importer(); rows = collect_rows(importer)
         except (OSError, TypeError, ValueError, KeyError) as error:
-            messagebox.showerror("검증 오류 · Validation Error", str(error), parent=window); return False
+            messagebox.showerror("검증 오류", str(error), parent=window); return False
         state["importer"] = importer; state["rows"] = rows; state["invalid"] = [row for row in rows if row["error"]]
         fill_table(preview_tree, rows)
-        preview_status.configure(text=f"분석된 행 {len(rows):,}개 · 최대 500행 미리보기 · Analyzed {len(rows):,} rows")
+        preview_status.configure(text=f"분석된 행 {len(rows):,}개 · 최대 500행 미리보기")
         fill_table(validation_tree, rows)
         valid = len(rows) - len(state["invalid"])
         validation_status.configure(text=f"정상 {valid:,}  ·  실패 {len(state['invalid']):,}  ·  필수 필드는 빨간색 행을 확인하세요.")
@@ -304,7 +325,7 @@ def _open_import_wizard(parent, on_complete=None, source_kind="school", profile_
             try: event_type, payload = events.get_nowait()
             except queue.Empty: break
             if event_type == "progress":
-                progress_status.configure(text=progress_text(payload)); progress_bar.set(max(0, min(1, payload.get("percentage", 0) / 100)))
+                progress_status.configure(text=_localized_progress_text(payload)); progress_bar.set(max(0, min(1, payload.get("percentage", 0) / 100)))
             elif event_type == "complete":
                 state["running"] = False; cancel_button.configure(state="disabled")
                 run_store.record(profile, state["file_path"], len(state["rows"]), payload)
@@ -312,7 +333,7 @@ def _open_import_wizard(parent, on_complete=None, source_kind="school", profile_
                 display_step(5)
                 if on_complete: on_complete()
             elif event_type == "error":
-                state["running"] = False; messagebox.showerror("가져오기 오류 · Import Error", str(payload), parent=window); display_step(3)
+                state["running"] = False; messagebox.showerror("가져오기 오류", str(payload), parent=window); display_step(3)
         if state["running"] and window.winfo_exists(): window.after(80, process_events)
 
     def start_import():
@@ -360,11 +381,12 @@ def _copy_summary(window, textbox):
 
 
 def _bilingual_summary(summary, profile, total):
+    warnings = summary.get("warnings") or []
     return (
-        f"가져오기 결과 · Import Summary\n\n"
-        f"Source: {profile.source}\nStatus: {summary.get('status', '')}\n"
-        f"Analyzed rows: {total:,}\nImported rows: {int(summary.get('imported', 0) or 0):,}\n"
-        f"Skipped rows: {int(summary.get('skipped', 0) or 0):,}\nFailed rows: {int(summary.get('failed', 0) or 0):,}\n"
-        f"Duration: {float(summary.get('elapsed', 0) or 0):.2f}s\n\n"
-        + format_import_summary(summary)
+        f"가져오기 결과\n\n"
+        f"소스: {profile.source}\n상태: {summary.get('status', '')}\n"
+        f"분석 행: {total:,}\n등록 행: {int(summary.get('imported', 0) or 0):,}\n"
+        f"건너뜀: {int(summary.get('skipped', 0) or 0):,}\n실패 행: {int(summary.get('failed', 0) or 0):,}\n"
+        f"소요 시간: {float(summary.get('elapsed', 0) or 0):.2f}초\n\n"
+        f"경고:\n" + ("\n".join(f"- {item}" for item in warnings) if warnings else "없음")
     )

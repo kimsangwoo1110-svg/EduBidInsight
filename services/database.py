@@ -174,9 +174,19 @@ def create_database():
                 start_year INTEGER,
                 end_year INTEGER,
                 source TEXT,
+                expected_procurement_date TEXT,
+                memo TEXT,
                 updated_at TEXT NOT NULL
             )
             """
+        )
+        _ensure_table_columns(
+            cursor,
+            "projects",
+            {
+                "expected_procurement_date": "TEXT",
+                "memo": "TEXT",
+            },
         )
         cursor.execute(
             """
@@ -544,6 +554,8 @@ def add_project(
     start_year=None,
     end_year=None,
     source="",
+    expected_procurement_date="",
+    memo="",
     connection=None,
     commit=True,
 ):
@@ -555,8 +567,9 @@ def add_project(
             """
             INSERT INTO projects(
                 school_code, project_name, category, status, budget,
-                start_year, end_year, source, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                start_year, end_year, source, expected_procurement_date,
+                memo, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 str(school_code or "").strip(),
@@ -567,6 +580,8 @@ def add_project(
                 start_year,
                 end_year,
                 str(source or "").strip(),
+                str(expected_procurement_date or "").strip(),
+                str(memo or "").strip(),
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             ),
         )
@@ -663,7 +678,8 @@ def find_projects_by_school(
             f"""
             SELECT
                 id, school_code, project_name, category, status, budget,
-                start_year, end_year, source, updated_at
+                start_year, end_year, source, updated_at,
+                expected_procurement_date, memo
             FROM projects
             WHERE {' AND '.join(conditions)}
             ORDER BY start_year DESC, project_name
@@ -681,15 +697,22 @@ def update_project(
     start_year=None,
     end_year=None,
     source="",
+    expected_procurement_date="",
+    memo="",
+    connection=None,
+    commit=True,
 ):
     """Update an existing project and return whether it was found."""
-    with closing(get_connection()) as conn:
+    owns_connection = connection is None
+    conn = connection or get_connection()
+    try:
         cursor = conn.execute(
             """
             UPDATE projects
             SET
                 project_name = ?, category = ?, status = ?, budget = ?,
-                start_year = ?, end_year = ?, source = ?, updated_at = ?
+                start_year = ?, end_year = ?, source = ?,
+                expected_procurement_date = ?, memo = ?, updated_at = ?
             WHERE id = ?
             """,
             (
@@ -700,12 +723,18 @@ def update_project(
                 start_year,
                 end_year,
                 str(source or "").strip(),
+                str(expected_procurement_date or "").strip(),
+                str(memo or "").strip(),
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 project_id,
             ),
         )
-        conn.commit()
+        if commit:
+            conn.commit()
         return cursor.rowcount > 0
+    finally:
+        if owns_connection:
+            conn.close()
 
 
 def delete_project(project_id):

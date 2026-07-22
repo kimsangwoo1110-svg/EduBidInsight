@@ -1,5 +1,16 @@
 # EduBid Insight Personal v1.0 User Guide
 
+## Sprint 26: School360 예정사업 관리
+
+School360의 `예정사업` 카드에서 선택한 학교의 사업을 관리할 수 있습니다.
+
+1. `사업 추가`를 눌러 사업명, 상태, 예산, 사업 기간, 예상 조달일과 메모를 입력합니다.
+2. 등록된 사업의 `수정` 또는 `삭제` 버튼으로 내용을 관리합니다.
+3. 여러 사업을 한 번에 등록하려면 `양식 다운로드`로 공식 Excel 양식을 받은 뒤
+   `예정사업 가져오기`를 선택합니다.
+4. 같은 사업명의 행은 기존 사업을 갱신하고, 새로운 사업명은 새로 등록합니다.
+5. 잘못된 상태·예산·연도·날짜가 있는 행은 저장하지 않고 결과 요약에 표시합니다.
+
 ## Start the application
 
 For the Windows release, run `EduBidInsight.exe`. No Python installation is required.

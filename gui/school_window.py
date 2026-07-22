@@ -7,6 +7,7 @@ from tkinter import Menu, messagebox, ttk
 from gui.crm import build_school_crm
 from gui.dashboard import build_school_dashboard
 from gui.school_profile import build_school_profile, open_school_profile
+from gui.school360_window import open_school360_window
 from gui.ui_theme import create_empty_state, own_child_window, update_empty_state
 from services.contract_service import ContractService
 from services.excel_service import export_school_excel
@@ -345,7 +346,11 @@ def open_school_detail(parent, row):
                     source_entry.get(),
                 )
                 if project:
-                    ProjectService.update(project["id"], *values)
+                    ProjectService.update(
+                        project["id"], *values,
+                        project.get("expected_procurement_date", ""),
+                        project.get("memo", ""),
+                    )
                 else:
                     ProjectService.create(school_code, *values)
             except ValueError as error:
@@ -569,11 +574,11 @@ def open_school_detail(parent, row):
     ).pack(pady=20)
 
 
-def open_school_window(parent):
+def open_school_window(parent, school360_mode=False):
     """Open the school search window and its result actions."""
     popup = ctk.CTkToplevel(parent)
     own_child_window(popup, parent)
-    popup.title("학교 검색")
+    popup.title("School360 학교 선택" if school360_mode else "학교 검색")
     popup.geometry("1400x850")
 
     rows_by_school_code = {}
@@ -582,7 +587,7 @@ def open_school_window(parent):
 
     title = ctk.CTkLabel(
         popup,
-        text="학교 검색",
+        text="School360 학교 선택" if school360_mode else "학교 검색",
         font=("맑은 고딕", 32, "bold"),
     )
     title.pack(pady=20)
@@ -708,7 +713,7 @@ def open_school_window(parent):
     tree.pack(fill="both", expand=True, padx=20, pady=10)
     empty_state = create_empty_state(
         popup,
-        "⌕  검색 조건에 맞는 학교가 없습니다.\nNo schools match your search.",
+        "⌕  검색 조건에 맞는 학교가 없습니다.",
     )
 
     def copy_text(value):
@@ -748,6 +753,16 @@ def open_school_window(parent):
         if row is not None:
             open_school_profile(popup, row[SCHOOL_CODE_INDEX])
 
+    def open_selected_school360(_event=None):
+        row = selected_row()
+        if row is None:
+            messagebox.showinfo(
+                "School360", "School360에서 볼 학교를 선택하세요.", parent=popup
+            )
+            return "break"
+        open_school360_window(popup, row)
+        return "break"
+
     def open_selected_homepage():
         row = selected_row()
         homepage = normalize_homepage(row[HOMEPAGE_INDEX]) if row else None
@@ -757,7 +772,8 @@ def open_school_window(parent):
         webbrowser.open_new_tab(homepage)
 
     context_menu = Menu(popup, tearoff=False)
-    context_menu.add_command(label="360° 프로필", command=open_selected_profile)
+    context_menu.add_command(label="School360 열기", command=open_selected_school360)
+    context_menu.add_command(label="기존 360° 프로필", command=open_selected_profile)
     context_menu.add_command(label="상세 보기", command=open_selected_detail)
     context_menu.add_command(label="홈페이지 열기", command=open_selected_homepage)
     context_menu.add_separator()
@@ -849,7 +865,10 @@ def open_school_window(parent):
         green_var.set(False)
         search()
 
-    tree.bind("<Double-1>", open_selected_detail)
+    tree.bind(
+        "<Double-1>",
+        open_selected_school360 if school360_mode else open_selected_detail,
+    )
     tree.bind("<Control-c>", copy_selected_row)
     tree.bind("<Control-C>", copy_selected_row)
     tree.bind("<Button-3>", show_context_menu)
@@ -863,6 +882,12 @@ def open_school_window(parent):
     ctk.CTkButton(button_frame, text="초기화", width=150, command=reset).pack(
         side="left", padx=5
     )
+    ctk.CTkButton(
+        button_frame,
+        text="School360 열기",
+        width=170,
+        command=open_selected_school360,
+    ).pack(side="left", padx=5)
     ctk.CTkButton(
         button_frame,
         text="Excel 다운로드",

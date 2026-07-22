@@ -1,4 +1,6 @@
-"""Project-domain service used by the school-detail module."""
+"""Project-domain service used by school detail and School360."""
+
+from datetime import date, datetime
 
 from services.database import (
     add_project,
@@ -19,6 +21,8 @@ PROJECT_FIELDS = (
     "end_year",
     "source",
     "updated_at",
+    "expected_procurement_date",
+    "memo",
 )
 
 ALL_FILTER = "전체"
@@ -40,6 +44,8 @@ class ProjectService:
         start_year=None,
         end_year=None,
         source="",
+        expected_procurement_date="",
+        memo="",
         connection=None,
         commit=True,
     ):
@@ -47,6 +53,7 @@ class ProjectService:
             raise ValueError("school_code is required")
         if not str(project_name or "").strip():
             raise ValueError("project_name is required")
+        procurement_date = ProjectService.normalize_date(expected_procurement_date)
         return add_project(
             school_code,
             project_name,
@@ -56,6 +63,8 @@ class ProjectService:
             start_year,
             end_year,
             source,
+            procurement_date,
+            str(memo or "").strip(),
             connection=connection,
             commit=commit,
         )
@@ -86,9 +95,14 @@ class ProjectService:
         start_year=None,
         end_year=None,
         source="",
+        expected_procurement_date="",
+        memo="",
+        connection=None,
+        commit=True,
     ):
         if not str(project_name or "").strip():
             raise ValueError("project_name is required")
+        procurement_date = ProjectService.normalize_date(expected_procurement_date)
         return update_project(
             project_id,
             project_name,
@@ -98,6 +112,10 @@ class ProjectService:
             start_year,
             end_year,
             source,
+            procurement_date,
+            str(memo or "").strip(),
+            connection=connection,
+            commit=commit,
         )
 
     @staticmethod
@@ -119,6 +137,8 @@ class ProjectService:
                 "end_year": 2027,
                 "source": "샘플 데이터",
                 "updated_at": "",
+                "expected_procurement_date": "2026-11-01",
+                "memo": "샘플 데이터입니다.",
             },
             {
                 "id": None,
@@ -131,6 +151,8 @@ class ProjectService:
                 "end_year": 2026,
                 "source": "샘플 데이터",
                 "updated_at": "",
+                "expected_procurement_date": "2027-02-01",
+                "memo": "샘플 데이터입니다.",
             },
         ]
 
@@ -186,3 +208,19 @@ class ProjectService:
             value = amount / 10_000
             return f"{amount:,}원 ({value:,.0f}만원)"
         return f"{amount:,}원"
+
+    @staticmethod
+    def normalize_date(value):
+        if value in (None, ""):
+            return ""
+        if isinstance(value, datetime):
+            return value.date().isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        text = str(value).strip()
+        for pattern in ("%Y-%m-%d", "%Y.%m.%d", "%Y/%m/%d", "%Y%m%d"):
+            try:
+                return datetime.strptime(text, pattern).date().isoformat()
+            except ValueError:
+                continue
+        raise ValueError("예상 조달일은 YYYY-MM-DD 형식이어야 합니다.")

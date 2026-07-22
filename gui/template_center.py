@@ -12,7 +12,7 @@ from services.import_center import PROFILES, template_path
 def open_template_center(parent):
     window = ctk.CTkToplevel(parent)
     own_child_window(window, parent)
-    window.title("템플릿 센터 · Template Center")
+    window.title("템플릿 센터")
     window.geometry("760x610")
     window.minsize(680, 520)
 
@@ -21,7 +21,7 @@ def open_template_center(parent):
     )
     ctk.CTkLabel(
         window,
-        text="Template Center  ·  공식 양식을 내려받아 데이터 오류를 줄이세요.",
+        text="공식 양식을 내려받아 데이터 오류를 줄이세요.",
         font=FONTS["body"], text_color=COLORS["muted"], anchor="w",
     ).pack(fill="x", padx=24, pady=(0, 16))
 
@@ -34,7 +34,7 @@ def open_template_center(parent):
             messagebox.showerror("템플릿 오류", f"번들 템플릿을 찾을 수 없습니다.\n{source}", parent=window)
             return
         destination = filedialog.asksaveasfilename(
-            parent=window, title="템플릿 저장 · Save Template",
+            parent=window, title="템플릿 저장",
             defaultextension=".xlsx", initialfile=profile.template_name,
             filetypes=(("Excel Workbook", "*.xlsx"),),
         )
@@ -43,9 +43,9 @@ def open_template_center(parent):
         try:
             shutil.copyfile(source, destination)
         except OSError as error:
-            messagebox.showerror("저장 오류 · Save Error", str(error), parent=window)
+            messagebox.showerror("저장 오류", str(error), parent=window)
             return
-        messagebox.showinfo("저장 완료 · Saved", f"공식 템플릿을 저장했습니다.\n{destination}", parent=window)
+        messagebox.showinfo("저장 완료", f"공식 템플릿을 저장했습니다.\n{destination}", parent=window)
 
     for profile in PROFILES.values():
         row = card(content)
@@ -58,12 +58,11 @@ def open_template_center(parent):
         icon.pack(side="left", padx=(14, 12), pady=12)
         text = ctk.CTkFrame(row, fg_color="transparent")
         text.pack(side="left", fill="both", expand=True, pady=10)
-        korean, english = profile.title.split("\n", 1)
-        ctk.CTkLabel(text, text=korean, font=FONTS["body_bold"], anchor="w").pack(fill="x")
-        ctk.CTkLabel(text, text=english, font=FONTS["caption"], text_color=COLORS["muted"], anchor="w").pack(fill="x")
-        primary_button(row, text="다운로드  Download", width=155, command=lambda selected=profile: download(selected)).pack(side="right", padx=14)
+        ctk.CTkLabel(text, text=profile.title, font=FONTS["body_bold"], anchor="w").pack(fill="x")
+        ctk.CTkLabel(text, text="공식 Excel 양식", font=FONTS["caption"], text_color=COLORS["muted"], anchor="w").pack(fill="x")
+        primary_button(row, text="다운로드", width=125, command=lambda selected=profile: download(selected)).pack(side="right", padx=14)
 
-    secondary_button(window, text="닫기  Close", width=110, command=window.destroy).pack(
+    secondary_button(window, text="닫기", width=110, command=window.destroy).pack(
         anchor="e", padx=24, pady=(0, 18)
     )
     return window

@@ -24,16 +24,16 @@ def open_opportunity_dashboard(parent):
     """Open Top 20, highest-score, and recently-increased opportunity views."""
     window = ctk.CTkToplevel(parent)
     own_child_window(window, parent)
-    window.title("Opportunity Engine Dashboard")
+    window.title("영업 기회 분석")
     window.geometry("1320x820")
     window.minsize(980, 650)
 
     header = ctk.CTkFrame(window)
     header.pack(fill="x", padx=16, pady=(16, 8))
     ctk.CTkLabel(
-        header, text="Top 20 Opportunity Schools", font=("맑은 고딕", 24, "bold")
+        header, text="영업 기회 상위 20개 학교", font=("맑은 고딕", 26, "bold")
     ).pack(side="left", padx=14, pady=12)
-    status = ctk.CTkLabel(header, text="Ready")
+    status = ctk.CTkLabel(header, text="준비됨")
     status.pack(side="right", padx=12)
 
     content = ctk.CTkScrollableFrame(window, fg_color="transparent")
@@ -42,7 +42,7 @@ def open_opportunity_dashboard(parent):
     highest_frame = ctk.CTkFrame(content)
     highest_frame.pack(fill="x", pady=6)
     ctk.CTkLabel(
-        highest_frame, text="Highest Scores", font=("맑은 고딕", 17, "bold")
+        highest_frame, text="최고 점수", font=("맑은 고딕", 19, "bold")
     ).grid(row=0, column=0, columnspan=5, padx=10, pady=(10, 4), sticky="w")
     highest_labels = []
     for index in range(5):
@@ -54,9 +54,9 @@ def open_opportunity_dashboard(parent):
     columns = ("school", "code", "score", "priority", "confidence", "recommendation", "action")
     top_tree = ttk.Treeview(content, columns=columns, show="headings", height=16)
     for column, heading, width in (
-        ("school", "School", 180), ("code", "Code", 100), ("score", "Score", 70),
-        ("priority", "Priority", 100), ("confidence", "Confidence", 90),
-        ("recommendation", "Recommendation", 300), ("action", "Next Action", 180),
+        ("school", "학교", 180), ("code", "코드", 100), ("score", "점수", 70),
+        ("priority", "우선순위", 100), ("confidence", "신뢰도", 90),
+        ("recommendation", "추천", 300), ("action", "다음 활동", 180),
     ):
         top_tree.heading(column, text=heading)
         top_tree.column(column, width=width, anchor="center")
@@ -65,7 +65,7 @@ def open_opportunity_dashboard(parent):
     increased_frame = ctk.CTkFrame(content)
     increased_frame.pack(fill="x", pady=8)
     ctk.CTkLabel(
-        increased_frame, text="Recently Increased Scores", font=("맑은 고딕", 17, "bold")
+        increased_frame, text="최근 점수 상승", font=("맑은 고딕", 19, "bold")
     ).pack(anchor="w", padx=10, pady=(10, 4))
     increased_tree = ttk.Treeview(
         increased_frame,
@@ -74,15 +74,15 @@ def open_opportunity_dashboard(parent):
         height=6,
     )
     for column, heading, width in (
-        ("school", "School", 260), ("code", "Code", 130),
-        ("score", "Current Score", 120), ("increase", "Increase", 100),
+        ("school", "학교", 260), ("code", "코드", 130),
+        ("score", "현재 점수", 120), ("increase", "상승폭", 100),
     ):
         increased_tree.heading(column, text=heading)
         increased_tree.column(column, width=width, anchor="center")
     increased_tree.pack(fill="x", padx=8, pady=(2, 10))
 
     def refresh():
-        status.configure(text="Calculating...")
+        status.configure(text="계산 중…")
         window.update_idletasks()
         dashboard = OpportunityEngine.dashboard(limit=20, persist=True)
         top_tree.delete(*top_tree.get_children())
@@ -98,9 +98,9 @@ def open_opportunity_dashboard(parent):
                 "", "end", iid=f"increase-{index}",
                 values=(item["school_name"], item["school_id"], item["score"], f"+{item['increase']}"),
             )
-        status.configure(text=f"Updated · {len(dashboard['top_opportunities'])} schools")
+        status.configure(text=f"업데이트됨 · 학교 {len(dashboard['top_opportunities'])}개")
 
-    ctk.CTkButton(header, text="Refresh", width=100, command=refresh).pack(
+    ctk.CTkButton(header, text="새로고침", width=105, command=refresh).pack(
         side="right", padx=8, pady=9
     )
     refresh()

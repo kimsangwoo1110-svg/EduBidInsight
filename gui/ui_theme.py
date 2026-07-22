@@ -30,13 +30,13 @@ COLORS = {
 }
 
 FONTS = {
-    "display": (FONT_FAMILY, 28, "bold"),
-    "title": (FONT_FAMILY, 22, "bold"),
-    "section": (FONT_FAMILY, 16, "bold"),
-    "body": (FONT_FAMILY, 13),
-    "body_bold": (FONT_FAMILY, 13, "bold"),
-    "caption": (FONT_FAMILY, 11),
-    "kpi": (FONT_FAMILY, 30, "bold"),
+    "display": (FONT_FAMILY, 30, "bold"),
+    "title": (FONT_FAMILY, 24, "bold"),
+    "section": (FONT_FAMILY, 18, "bold"),
+    "body": (FONT_FAMILY, 14),
+    "body_bold": (FONT_FAMILY, 14, "bold"),
+    "caption": (FONT_FAMILY, 12),
+    "kpi": (FONT_FAMILY, 32, "bold"),
 }
 
 
@@ -145,9 +145,9 @@ def configure_ttk_styles(root):
         bordercolor=border,
         lightcolor=border,
         darkcolor=border,
-        rowheight=30,
+        rowheight=34,
         relief="flat",
-        font=(FONT_FAMILY, 10),
+        font=(FONT_FAMILY, 11),
     )
     style.configure(
         "Treeview.Heading",
@@ -156,7 +156,7 @@ def configure_ttk_styles(root):
         bordercolor=border,
         relief="flat",
         padding=(9, 8),
-        font=(FONT_FAMILY, 10, "bold"),
+        font=(FONT_FAMILY, 11, "bold"),
     )
     style.map(
         "Treeview",

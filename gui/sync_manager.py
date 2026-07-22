@@ -53,8 +53,8 @@ def open_sync_manager(parent):
 
     ctk.CTkLabel(
         manager,
-        text="Data Sync Manager",
-        font=("맑은 고딕", 25, "bold"),
+        text="데이터 동기화 관리",
+        font=("맑은 고딕", 27, "bold"),
     ).pack(pady=(18, 10))
 
     controls = ctk.CTkFrame(manager)
@@ -76,13 +76,13 @@ def open_sync_manager(parent):
     import_button.pack(side="left", padx=5, pady=10)
     ctk.CTkButton(
         controls,
-        text="SchoolMarket 가져오기",
+        text="학교장터 가져오기",
         width=165,
         command=lambda: open_schoolmarket_import_wizard(manager, refresh_history),
     ).pack(side="left", padx=5, pady=10)
     ctk.CTkButton(
         controls,
-        text="G2B 가져오기",
+        text="나라장터 가져오기",
         width=130,
         command=lambda: open_g2b_import_wizard(manager, refresh_history),
     ).pack(side="left", padx=5, pady=10)

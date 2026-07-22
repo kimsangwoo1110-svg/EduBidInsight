@@ -1,23 +1,20 @@
-"""Excel Import Center launcher, template access, and audit history."""
+"""Connector-driven Data Source Manager and import audit history."""
 
 import customtkinter as ctk
 from tkinter import ttk
 
-from gui.import_wizard import (
-    open_crm_import_wizard, open_education_office_import_wizard,
-    open_g2b_import_wizard, open_school_import_wizard,
-    open_schoolmarket_import_wizard,
-)
+from connectors import connector_catalog
+from gui.import_wizard import open_profile_import_wizard
 from gui.template_center import open_template_center
 from gui.ui_theme import COLORS, FONTS, card, create_empty_state, own_child_window, primary_button, secondary_button, stripe_treeview, update_empty_state
 from services.import_center import ImportRunStore, PROFILES
 
 
 IMPORT_HISTORY_COLUMNS = (
-    ("date", "날짜\nDate", 185), ("source", "소스\nSource", 145),
-    ("filename", "파일\nFile", 220), ("rows", "행\nRows", 80),
-    ("success", "성공\nSuccess", 85), ("failed", "실패\nFailed", 80),
-    ("duration", "소요 시간\nDuration", 100), ("status", "상태\nStatus", 100),
+    ("date", "날짜", 185), ("source", "소스", 145),
+    ("filename", "파일", 220), ("rows", "행", 80),
+    ("success", "성공", 85), ("failed", "실패", 80),
+    ("duration", "소요 시간", 100), ("status", "상태", 100),
 )
 
 
@@ -42,7 +39,7 @@ def import_run_values(history):
 def open_data_source_manager(parent):
     manager = ctk.CTkToplevel(parent)
     own_child_window(manager, parent)
-    manager.title("Excel 가져오기 센터 · Excel Import Center")
+    manager.title("데이터 소스 관리자")
     manager.geometry("1180x760")
     manager.minsize(1020, 680)
     history_store = ImportRunStore()
@@ -51,22 +48,16 @@ def open_data_source_manager(parent):
     title_row.pack(fill="x", padx=24, pady=(20, 10))
     title_text = ctk.CTkFrame(title_row, fg_color="transparent")
     title_text.pack(side="left", fill="x", expand=True)
-    ctk.CTkLabel(title_text, text="Excel 가져오기 센터", font=FONTS["title"], anchor="w").pack(fill="x")
-    ctk.CTkLabel(title_text, text="Excel Import Center  ·  공식 템플릿과 검증된 가져오기 흐름", font=FONTS["body"], text_color=COLORS["muted"], anchor="w").pack(fill="x")
-    secondary_button(title_row, text="템플릿 센터  Template Center", width=220, command=lambda: open_template_center(manager)).pack(side="right", padx=(12, 0))
+    ctk.CTkLabel(title_text, text="데이터 소스 관리자", font=FONTS["title"], anchor="w").pack(fill="x")
+    ctk.CTkLabel(title_text, text="연결 소스 및 Excel 가져오기 통합 관리", font=FONTS["body"], text_color=COLORS["muted"], anchor="w").pack(fill="x")
+    secondary_button(title_row, text="템플릿 센터", width=150, command=lambda: open_template_center(manager)).pack(side="right", padx=(12, 0))
 
     launch_panel = card(manager)
     launch_panel.pack(fill="x", padx=24, pady=8)
-    ctk.CTkLabel(launch_panel, text="가져오기 시작 · Start Import", font=FONTS["section"], anchor="w").pack(fill="x", padx=16, pady=(14, 8))
+    ctk.CTkLabel(launch_panel, text="가져오기 시작", font=FONTS["section"], anchor="w").pack(fill="x", padx=16, pady=(14, 8))
     button_row = ctk.CTkFrame(launch_panel, fg_color="transparent")
     button_row.pack(fill="x", padx=10, pady=(0, 14))
-    launchers = (
-        ("school", open_school_import_wizard),
-        ("education_office", open_education_office_import_wizard),
-        ("schoolmarket", open_schoolmarket_import_wizard),
-        ("g2b", open_g2b_import_wizard),
-        ("crm", open_crm_import_wizard),
-    )
+    connectors = connector_catalog()
 
     def refresh_history():
         history_tree.delete(*history_tree.get_children())
@@ -74,16 +65,34 @@ def open_data_source_manager(parent):
             history_tree.insert("", "end", iid=f"import-run-{index}", tags=(history.get("status", ""),), values=import_run_values(history))
         stripe_treeview(history_tree); update_empty_state(history_tree, history_empty)
 
-    for index, (key, launcher) in enumerate(launchers):
-        profile = PROFILES[key]
-        button = primary_button(button_row, text=profile.title, height=58, command=lambda selected=launcher: selected(manager, refresh_history))
+    for index, connector in enumerate(connectors):
+        profile = PROFILES[connector.metadata.profile_key]
+        button = primary_button(
+            button_row,
+            text=profile.title,
+            height=58,
+            command=lambda selected=connector: open_profile_import_wizard(
+                manager, selected.metadata.profile_key, refresh_history
+            ),
+        )
         button.grid(row=0, column=index, padx=5, sticky="ew")
         button_row.grid_columnconfigure(index, weight=1, uniform="import-profile")
+    connector_summary = "  ·  ".join(
+        f"{connector.metadata.name} ({'모의 연동' if connector.metadata.is_mock else '사용 가능'})"
+        for connector in connectors
+    )
+    ctk.CTkLabel(
+        launch_panel,
+        text=connector_summary,
+        font=FONTS["caption"],
+        text_color=COLORS["muted"],
+        anchor="w",
+    ).pack(fill="x", padx=16, pady=(0, 12))
 
     history_header = ctk.CTkFrame(manager, fg_color="transparent")
     history_header.pack(fill="x", padx=24, pady=(14, 4))
-    ctk.CTkLabel(history_header, text="가져오기 이력 · Import History", font=FONTS["section"], anchor="w").pack(side="left")
-    secondary_button(history_header, text="새로고침  Refresh", width=145, command=refresh_history).pack(side="right")
+    ctk.CTkLabel(history_header, text="가져오기 이력", font=FONTS["section"], anchor="w").pack(side="left")
+    secondary_button(history_header, text="새로고침", width=115, command=refresh_history).pack(side="right")
 
     table_panel = ctk.CTkFrame(manager, fg_color="transparent")
     table_panel.pack(fill="both", expand=True, padx=24, pady=(4, 20))
@@ -94,7 +103,7 @@ def open_data_source_manager(parent):
         height=15,
     )
     history_empty = create_empty_state(
-        table_panel, "▦\n가져오기 이력이 없습니다.\nNo import history yet."
+        table_panel, "▦\n가져오기 이력이 없습니다."
     )
     ybar = ttk.Scrollbar(table_panel, orient="vertical", command=history_tree.yview)
     history_tree.configure(yscrollcommand=ybar.set)

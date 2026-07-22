@@ -87,7 +87,7 @@ def run(settings=None):
     ).pack(fill="x")
     ctk.CTkLabel(
         brand_text,
-        text="Education Sales Intelligence",
+        text="교육 영업 인텔리전스",
         font=FONTS["caption"],
         text_color=COLORS["muted"],
         anchor="w",
@@ -95,7 +95,7 @@ def run(settings=None):
 
     operation_status = ctk.CTkLabel(
         sidebar,
-        text="Ready",
+        text="준비됨",
         font=FONTS["caption"],
         text_color=COLORS["muted"],
         anchor="w",
@@ -109,7 +109,7 @@ def run(settings=None):
 
     def update_school_data():
         set_action_buttons_state("disabled")
-        operation_status.configure(text="Updating school data…")
+        operation_status.configure(text="학교 데이터 업데이트 중…")
 
         progress_dialog = ctk.CTkToplevel(app)
         own_child_window(progress_dialog, app)
@@ -174,7 +174,7 @@ def run(settings=None):
                     completed = True
                     close_progress_dialog()
                     set_action_buttons_state("normal")
-                    operation_status.configure(text=f"Updated · {payload:,} schools")
+                    operation_status.configure(text=f"업데이트 완료 · 학교 {payload:,}개")
                     messagebox.showinfo(
                         "완료", f"{payload:,}개 학교 데이터를 업데이트했습니다.", parent=app
                     )
@@ -182,7 +182,7 @@ def run(settings=None):
                     completed = True
                     close_progress_dialog()
                     set_action_buttons_state("normal")
-                    operation_status.configure(text="Update failed")
+                    operation_status.configure(text="업데이트 실패")
                     messagebox.showerror("오류", str(payload), parent=app)
             if not completed:
                 app.after(100, process_download_events)
@@ -217,41 +217,44 @@ def run(settings=None):
         action_buttons.append(button)
         return button
 
-    section_label("대시보드\nDASHBOARD")
-    nav_button("대시보드\nDashboard", lambda: home.tkraise(), "▦", selected=True)
+    section_label("대시보드")
+    nav_button("대시보드", lambda: home.tkraise(), "▦", selected=True)
 
-    section_label("학교 관리\nSCHOOL")
-    nav_button("학교 검색\nSchool Search", lambda: open_school_window(app), "⌕")
-    # School 360 opens the existing school workspace; no new behavior is introduced.
-    nav_button("학교 360\nSchool 360", lambda: open_school_window(app), "◎")
+    section_label("학교 관리")
+    nav_button("학교 검색", lambda: open_school_window(app), "⌕")
+    nav_button(
+        "학교360",
+        lambda: open_school_window(app, school360_mode=True),
+        "◎",
+    )
 
-    section_label("데이터 관리\nDATA")
-    nav_button("학교 업데이트\nSchool Update", update_school_data, "↻")
-    nav_button("교육청\nEducation Office", lambda: print("교육청 검색"), "▤")
-    nav_button("나라장터\nG2B", lambda: print("나라장터 검색"), "▥")
-    nav_button("AI 검색\nAI Search", lambda: open_opportunity_dashboard(app), "✦")
-    nav_button("데이터 소스\nData Sources", lambda: open_data_source_manager(app), "◫")
-    nav_button("동기화 관리\nSync Manager", lambda: open_sync_manager(app), "⇄")
+    section_label("데이터 관리")
+    nav_button("학교 업데이트", update_school_data, "↻")
+    nav_button("교육청", lambda: print("교육청 검색"), "▤")
+    nav_button("나라장터", lambda: print("나라장터 검색"), "▥")
+    nav_button("AI 검색", lambda: open_opportunity_dashboard(app), "✦")
+    nav_button("데이터 소스", lambda: open_data_source_manager(app), "◫")
+    nav_button("동기화 관리", lambda: open_sync_manager(app), "⇄")
 
-    section_label("영업 관리\nSALES")
-    nav_button("CRM 액션 센터\nCRM Action Center", lambda: open_action_center(app), "✓")
-    nav_button("보고서\nReports", lambda: open_report_center(app), "▧")
+    section_label("영업 관리")
+    nav_button("고객 활동 센터", lambda: open_action_center(app), "✓")
+    nav_button("보고서", lambda: open_report_center(app), "▧")
 
-    section_label("시스템 관리\nSYSTEM")
-    nav_button("규칙 관리\nRule Management", lambda: open_rule_manager(app), "◇")
-    nav_button("설정\nSettings", lambda: open_settings_dialog(app, settings), "⚙")
+    section_label("시스템 관리")
+    nav_button("규칙 관리", lambda: open_rule_manager(app), "◇")
+    nav_button("설정", lambda: open_settings_dialog(app, settings), "⚙")
 
     ctk.CTkLabel(
         sidebar,
-        text=f"Personal Edition  ·  v{__version__}",
+        text=f"개인용  ·  v{__version__}  ·  개발자 김상우",
         font=FONTS["caption"],
         text_color=COLORS["muted"],
     ).pack(pady=(18, 14))
 
     status_items = (
-        f"Version  {__version__}",
-        f"Database  {Path(settings.database_path).name} · Connected",
-        "Current User  Local",
+        f"버전  {__version__}",
+        f"데이터베이스  {Path(settings.database_path).name} · 연결됨",
+        "현재 사용자  로컬",
     )
     for item in status_items:
         ctk.CTkLabel(
@@ -263,7 +266,7 @@ def run(settings=None):
         ctk.CTkLabel(status_bar, text="│", text_color=COLORS["border"]).pack(side="left")
     last_refresh = ctk.CTkLabel(
         status_bar,
-        text="Last Refresh  —",
+        text="마지막 새로고침  —",
         font=FONTS["caption"],
         text_color=COLORS["muted"],
     )
@@ -271,7 +274,7 @@ def run(settings=None):
 
     def dashboard_refreshed(snapshot):
         generated = str(snapshot.get("generated_at") or "")
-        last_refresh.configure(text=f"Last Refresh  {generated[11:19] or '—'}")
+        last_refresh.configure(text=f"마지막 새로고침  {generated[11:19] or '—'}")
 
     build_today_dashboard(
         home,

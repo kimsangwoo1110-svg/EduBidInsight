@@ -1,6 +1,28 @@
 # Changelog
 
+## Sprint 26 — UI/UX Polish & Project Management Foundation
+
+- Converted application navigation, dashboard chrome, dialogs, table headings, and empty states to Korean-first UI text.
+- Increased the shared font scale and tightened card spacing for improved readability.
+- Kept the developer credit only in the compact footer and About dialog.
+- Added School360 planned-project create, edit, delete, and status/budget/procurement-date/memo presentation.
+- Added transactional Excel bulk registration/update with Korean aliases, row validation, and a downloadable template.
+- Added backward-compatible planned-project date and memo columns without changing Connector Framework architecture.
+- Added project CRUD, migration, template, and Excel upsert unit coverage.
+
 ## 1.0.0 — 2026-07-21
+
+### School360 dashboard
+
+- Added a primary card-based School360 view with school information, statistics, planned projects, procurement, CRM, and attachments.
+- Added School360 navigation and selected-school routing from School Search.
+- Added a read-only view model assembled exclusively from Connector Framework mock records.
+
+### Connector framework
+
+- Added a transport-only connector lifecycle for Excel and future remote data sources.
+- Added safe mock connectors for School Info OpenAPI, School Market (S2B), NaraJangteo (G2B), and Education Office data.
+- Refactored Data Source Manager to build import routes from connector metadata while preserving the existing Import and Template Centers.
 
 ### Excel Import Center
 

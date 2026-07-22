@@ -129,7 +129,7 @@ def build_school_dashboard(parent, school_code, school_name):
     office_project_frame.pack(fill="x", pady=5)
     ctk.CTkLabel(
         office_project_frame,
-        text="Education Office Projects",
+        text="교육청 예정사업",
         font=("맑은 고딕", 16, "bold"),
     ).grid(row=0, column=0, columnspan=3, padx=10, pady=(8, 3), sticky="w")
     office_project_kpis = []
@@ -149,9 +149,9 @@ def build_school_dashboard(parent, school_code, school_name):
         height=4,
     )
     for column, heading, width in (
-        ("category", "Category", 240),
-        ("projects", "Projects", 100),
-        ("budget", "Budget", 190),
+        ("category", "분류", 240),
+        ("projects", "사업 수", 100),
+        ("budget", "예산", 190),
     ):
         project_category_tree.heading(column, text=heading)
         project_category_tree.column(column, width=width, anchor="center")
@@ -162,7 +162,7 @@ def build_school_dashboard(parent, school_code, school_name):
     sales_kpi_frame = ctk.CTkFrame(dashboard)
     sales_kpi_frame.pack(fill="x", pady=5)
     ctk.CTkLabel(
-        sales_kpi_frame, text="Sales KPI", font=("맑은 고딕", 16, "bold")
+        sales_kpi_frame, text="영업 핵심 지표", font=("맑은 고딕", 18, "bold")
     ).grid(row=0, column=0, columnspan=5, padx=10, pady=(8, 3), sticky="w")
     sales_kpi_labels = []
     for index in range(5):
@@ -178,9 +178,9 @@ def build_school_dashboard(parent, school_code, school_name):
     crm_frame = ctk.CTkFrame(dashboard)
     crm_frame.pack(fill="x", pady=5)
     ctk.CTkLabel(
-        crm_frame, text="Sales Pipeline & Follow-up", font=("맑은 고딕", 16, "bold")
+        crm_frame, text="영업 단계 및 후속 활동", font=("맑은 고딕", 18, "bold")
     ).pack(anchor="w", padx=10, pady=(8, 2))
-    pipeline_label = ctk.CTkLabel(crm_frame, text="Pipeline: Lead", anchor="w")
+    pipeline_label = ctk.CTkLabel(crm_frame, text="영업 단계: 잠재 고객", anchor="w")
     pipeline_label.pack(fill="x", padx=10, pady=(2, 6))
     crm_tables = ctk.CTkFrame(crm_frame, fg_color="transparent")
     crm_tables.pack(fill="x", padx=5, pady=(0, 8))
@@ -208,9 +208,9 @@ def build_school_dashboard(parent, school_code, school_name):
         tree.pack(fill="both", expand=True, padx=5, pady=(0, 5))
         return tree
 
-    recent_activity_tree = crm_table("Recent Activities")
-    upcoming_action_tree = crm_table("Upcoming Actions")
-    overdue_action_tree = crm_table("Overdue Actions")
+    recent_activity_tree = crm_table("최근 활동")
+    upcoming_action_tree = crm_table("예정된 액션")
+    overdue_action_tree = crm_table("지연된 액션")
 
     summaries = ctk.CTkFrame(dashboard, fg_color="transparent")
     summaries.pack(fill="x", pady=5)
@@ -219,14 +219,14 @@ def build_school_dashboard(parent, school_code, school_name):
     contract_frame = ctk.CTkFrame(summaries)
     contract_frame.pack(side="left", fill="both", expand=True, padx=(4, 0))
     ctk.CTkLabel(
-        project_frame, text="Project Summary", font=("맑은 고딕", 16, "bold")
+        project_frame, text="사업 요약", font=("맑은 고딕", 18, "bold")
     ).pack(anchor="w", padx=12, pady=(10, 4))
     project_summary_label = ctk.CTkLabel(
         project_frame, text="-", anchor="w", justify="left"
     )
     project_summary_label.pack(fill="x", padx=12, pady=(2, 12))
     ctk.CTkLabel(
-        contract_frame, text="Contract Summary", font=("맑은 고딕", 16, "bold")
+        contract_frame, text="계약 요약", font=("맑은 고딕", 18, "bold")
     ).pack(anchor="w", padx=12, pady=(10, 4))
     contract_summary_label = ctk.CTkLabel(
         contract_frame, text="-", anchor="w", justify="left"
@@ -266,7 +266,7 @@ def build_school_dashboard(parent, school_code, school_name):
     trend_frame = ctk.CTkFrame(dashboard)
     trend_frame.pack(fill="x", pady=5)
     ctk.CTkLabel(
-        trend_frame, text="Yearly Trend", font=("맑은 고딕", 16, "bold")
+        trend_frame, text="연도별 추이", font=("맑은 고딕", 18, "bold")
     ).pack(anchor="w", padx=10, pady=(8, 4))
     trend_tree = ttk.Treeview(
         trend_frame,
@@ -288,7 +288,7 @@ def build_school_dashboard(parent, school_code, school_name):
     cycle_frame = ctk.CTkFrame(dashboard)
     cycle_frame.pack(fill="x", pady=5)
     ctk.CTkLabel(
-        cycle_frame, text="Purchase Cycle", font=("맑은 고딕", 16, "bold")
+        cycle_frame, text="구매 주기", font=("맑은 고딕", 18, "bold")
     ).pack(anchor="w", padx=10, pady=(8, 2))
     cycle_label = ctk.CTkLabel(cycle_frame, text="-", anchor="w")
     cycle_label.pack(fill="x", padx=10, pady=(2, 9))
@@ -299,7 +299,7 @@ def build_school_dashboard(parent, school_code, school_name):
     opportunity_header.pack(fill="x", padx=10, pady=(8, 3))
     ctk.CTkLabel(
         opportunity_header,
-        text="Opportunity Score",
+        text="영업 기회 점수",
         font=("맑은 고딕", 16, "bold"),
     ).pack(side="left")
     opportunity_label = ctk.CTkLabel(opportunity_header, text="0/100")
@@ -326,7 +326,7 @@ def build_school_dashboard(parent, school_code, school_name):
     insight_frame = ctk.CTkFrame(dashboard)
     insight_frame.pack(fill="x", pady=5)
     ctk.CTkLabel(
-        insight_frame, text="Business Insight", font=("맑은 고딕", 16, "bold")
+        insight_frame, text="영업 인사이트", font=("맑은 고딕", 18, "bold")
     ).pack(anchor="w", padx=10, pady=(8, 2))
     business_summary_label = ctk.CTkLabel(
         insight_frame, text="-", anchor="w", justify="left", wraplength=1080
@@ -336,7 +336,7 @@ def build_school_dashboard(parent, school_code, school_name):
     explanation_frame = ctk.CTkFrame(dashboard)
     explanation_frame.pack(fill="x", pady=5)
     ctk.CTkLabel(
-        explanation_frame, text="Explanation", font=("맑은 고딕", 16, "bold")
+        explanation_frame, text="설명", font=("맑은 고딕", 18, "bold")
     ).pack(anchor="w", padx=10, pady=(8, 2))
     explanation_label = ctk.CTkLabel(
         explanation_frame, text="-", anchor="w", justify="left", wraplength=1080
@@ -346,7 +346,7 @@ def build_school_dashboard(parent, school_code, school_name):
     recommendation_frame = ctk.CTkFrame(dashboard)
     recommendation_frame.pack(fill="x", pady=5)
     ctk.CTkLabel(
-        recommendation_frame, text="Recommendation", font=("맑은 고딕", 16, "bold")
+        recommendation_frame, text="추천", font=("맑은 고딕", 18, "bold")
     ).pack(anchor="w", padx=10, pady=(8, 3))
     recommendation_tree = ttk.Treeview(
         recommendation_frame,
@@ -367,7 +367,7 @@ def build_school_dashboard(parent, school_code, school_name):
     risk_frame = ctk.CTkFrame(dashboard)
     risk_frame.pack(fill="x", pady=5)
     ctk.CTkLabel(
-        risk_frame, text="Risks", font=("맑은 고딕", 16, "bold")
+        risk_frame, text="위험 요소", font=("맑은 고딕", 18, "bold")
     ).pack(anchor="w", padx=10, pady=(8, 3))
     risk_tree = ttk.Treeview(
         risk_frame,
@@ -387,7 +387,7 @@ def build_school_dashboard(parent, school_code, school_name):
     action_frame = ctk.CTkFrame(dashboard)
     action_frame.pack(fill="x", pady=5)
     ctk.CTkLabel(
-        action_frame, text="Next Actions", font=("맑은 고딕", 16, "bold")
+        action_frame, text="다음 활동", font=("맑은 고딕", 18, "bold")
     ).pack(anchor="w", padx=10, pady=(8, 3))
     action_tree = ttk.Treeview(
         action_frame,
@@ -408,7 +408,7 @@ def build_school_dashboard(parent, school_code, school_name):
     timeline_frame = ctk.CTkFrame(dashboard)
     timeline_frame.pack(fill="x", pady=5)
     ctk.CTkLabel(
-        timeline_frame, text="Opportunity Timeline", font=("맑은 고딕", 16, "bold")
+        timeline_frame, text="영업 기회 일정", font=("맑은 고딕", 18, "bold")
     ).pack(anchor="w", padx=10, pady=(8, 3))
     timeline_tree = ttk.Treeview(
         timeline_frame,
@@ -429,7 +429,7 @@ def build_school_dashboard(parent, school_code, school_name):
     matrix_frame = ctk.CTkFrame(dashboard)
     matrix_frame.pack(fill="x", pady=5)
     ctk.CTkLabel(
-        matrix_frame, text="Priority Matrix", font=("맑은 고딕", 16, "bold")
+        matrix_frame, text="우선순위 매트릭스", font=("맑은 고딕", 18, "bold")
     ).pack(anchor="w", padx=10, pady=(8, 3))
     matrix_tree = ttk.Treeview(
         matrix_frame,
@@ -452,15 +452,25 @@ def build_school_dashboard(parent, school_code, school_name):
         insight = InsightService.summarize_school(school_code)
         summary = insight["analytics"]
         crm_summary = SalesActivityService.school_crm_summary(school_code)
+        display_labels = {
+            "Opportunity Score": "영업 기회 점수",
+            "G2B contracts": "나라장터 계약",
+            "G2B spending": "나라장터 계약 금액",
+            "Total projects": "전체 사업",
+            "Active projects": "진행 사업",
+            "Total project budget": "전체 사업 예산",
+            "Visits": "방문", "Calls": "전화", "Quotations": "견적",
+            "Wins": "수주", "Win rate": "수주율",
+        }
         for (title_label, value_label), (title, value) in zip(
             kpi_labels, dashboard_kpi_values(summary)
         ):
-            title_label.configure(text=title)
+            title_label.configure(text=display_labels.get(title, title))
             value_label.configure(text=value)
         for (title_label, value_label), (title, value) in zip(
             g2b_kpi_labels, g2b_kpi_values(summary)
         ):
-            title_label.configure(text=title)
+            title_label.configure(text=display_labels.get(title, title))
             value_label.configure(text=value)
         g2b_latest_tree.delete(*g2b_latest_tree.get_children())
         for contract in summary.get("g2b_summary", {}).get("latest_contracts", []):
@@ -477,7 +487,7 @@ def build_school_dashboard(parent, school_code, school_name):
         for (title_label, value_label), (title, value) in zip(
             office_project_kpis, project_portfolio_values(summary)
         ):
-            title_label.configure(text=title)
+            title_label.configure(text=display_labels.get(title, title))
             value_label.configure(text=value)
         project_category_tree.delete(*project_category_tree.get_children())
         for category in summary.get("project_analytics", {}).get(
@@ -495,7 +505,7 @@ def build_school_dashboard(parent, school_code, school_name):
         for (title_label, value_label), (title, value) in zip(
             sales_kpi_labels, sales_kpi_values(crm_summary["kpis"])
         ):
-            title_label.configure(text=title)
+            title_label.configure(text=display_labels.get(title, title))
             value_label.configure(text=value)
 
         pipeline = crm_summary["pipeline"]
